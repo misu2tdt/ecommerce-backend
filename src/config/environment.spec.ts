@@ -42,6 +42,35 @@ describe('runtime environment validation', () => {
     ).toMatchObject({ swaggerEnabled: true });
   });
 
+  it('accepts a managed PostgreSQL URL without split database fields', () => {
+    const managed = {
+      ...core,
+      DATABASE_URL:
+        'postgresql://app:secret@ep-example.neon.tech/store?sslmode=require',
+      DB_HOST: undefined,
+      DB_PORT: undefined,
+      DB_USERNAME: undefined,
+      DB_PASSWORD: undefined,
+      DB_NAME: undefined,
+    };
+
+    expect(validateRuntimeEnvironment(managed)).toMatchObject({
+      nodeEnvironment: 'production',
+    });
+  });
+
+  it('rejects malformed or non-PostgreSQL managed database URLs', () => {
+    expect(() =>
+      validateRuntimeEnvironment({ ...core, DATABASE_URL: 'https://db.test' }),
+    ).toThrow('DATABASE_URL');
+    expect(() =>
+      validateRuntimeEnvironment({
+        ...core,
+        DATABASE_URL: 'postgresql://ep-example.neon.tech/store',
+      }),
+    ).toThrow('DATABASE_URL');
+  });
+
   it.each(['PORT', 'FRONTEND_ORIGIN', 'DB_PASSWORD', 'JWT_SECRET'])(
     'fails production startup when %s is missing',
     (key) => {

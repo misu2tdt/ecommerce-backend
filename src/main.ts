@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { validateRuntimeEnvironment } from './config/environment';
@@ -18,6 +18,10 @@ async function bootstrap() {
     }),
   );
   if (runtime.swaggerEnabled) configureSwagger(app);
-  await app.listen(runtime.port);
+  await app.listen(runtime.port, '0.0.0.0');
+  Logger.log(
+    `API ready environment=${runtime.nodeEnvironment} port=${runtime.port} swagger=${runtime.swaggerEnabled ? 'enabled' : 'disabled'}`,
+    'Bootstrap',
+  );
 }
 void bootstrap();

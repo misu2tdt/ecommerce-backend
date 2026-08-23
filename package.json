@@ -20,6 +20,7 @@
     "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js",
     "seed:demo": "ts-node src/database/seeds/demo-seed.runner.ts",
     "seed:demo:test": "ts-node src/database/seeds/demo-seed-test.runner.ts",
+    "seed:demo:production": "node dist/database/seeds/demo-seed-production.runner.js",
     "dev:setup": "ts-node src/database/dev-setup/dev-setup.runner.ts setup",
     "dev:db:up": "ts-node src/database/dev-setup/dev-setup.runner.ts up",
     "dev:db:down": "ts-node src/database/dev-setup/dev-setup.runner.ts down",

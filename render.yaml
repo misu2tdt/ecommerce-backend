@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: ecommerce-backend
+    runtime: node
+    plan: free
+    autoDeployTrigger: 'off'
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: NODE_ENV
+        value: production
+      - key: SWAGGER_ENABLED
+        value: 'false'
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: PAYMENT_CURRENCY
+        value: VND
+      - key: MOMO_PARTNER_CODE
+        value: deployment-disabled
+      - key: MOMO_ACCESS_KEY
+        value: deployment-disabled
+      - key: MOMO_SECRET_KEY
+        value: deployment-disabled
+      - key: MOMO_IDENTITY_SECRET
+        generateValue: true
+      - key: MOMO_ENDPOINT
+        value: https://test-payment.momo.vn
+      - key: MOMO_REDIRECT_URL
+        sync: false
+      - key: MOMO_IPN_URL
+        sync: false

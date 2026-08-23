@@ -152,12 +152,20 @@ export interface DemoSeedSummary {
 
 export async function seedDemoData(
   dataSource: DataSource,
-  options: { target: DemoSeedTarget; nodeEnvironment?: string },
+  options: {
+    target: DemoSeedTarget;
+    nodeEnvironment?: string;
+    productionApproval?: {
+      confirmation?: string;
+      database?: string;
+    };
+  },
 ): Promise<DemoSeedSummary> {
   assertSafeDemoSeedDatabase(
     dataSource,
     options.target,
     options.nodeEnvironment,
+    options.productionApproval,
   );
   if (!dataSource.isInitialized) {
     throw new Error('Demo seed DataSource must be initialized');
@@ -165,13 +173,18 @@ export async function seedDemoData(
 
   return dataSource.transaction(async (manager) => {
     const passwordHash = await bcrypt.hash(DEMO_PASSWORD, BCRYPT_ROUNDS);
-    const customer = await upsertUser(
-      manager,
-      DEMO_CUSTOMER_EMAIL,
-      passwordHash,
-      UserRole.USER,
-    );
-    await upsertUser(manager, DEMO_ADMIN_EMAIL, passwordHash, UserRole.ADMIN);
+    const isProduction = options.target === 'production';
+    const customer = isProduction
+      ? await upsertProductionCustomer(manager, passwordHash)
+      : await upsertUser(
+          manager,
+          DEMO_CUSTOMER_EMAIL,
+          passwordHash,
+          UserRole.USER,
+        );
+    if (!isProduction) {
+      await upsertUser(manager, DEMO_ADMIN_EMAIL, passwordHash, UserRole.ADMIN);
+    }
 
     const categories = new Map<string, Category>();
     for (const definition of categoryDefinitions) {
@@ -253,7 +266,7 @@ export async function seedDemoData(
     }
 
     return {
-      users: 2,
+      users: isProduction ? 1 : 2,
       categories: categoryDefinitions.length,
       brands: brandDefinitions.length,
       products: productDefinitions.length,
@@ -266,6 +279,23 @@ export async function seedDemoData(
       payments: 0,
     };
   });
+}
+
+async function upsertProductionCustomer(
+  manager: EntityManager,
+  password: string,
+): Promise<User> {
+  const repository = manager.getRepository(User);
+  const existing = await repository.findOne({
+    where: { email: DEMO_CUSTOMER_EMAIL },
+    lock: { mode: 'pessimistic_write' },
+  });
+  if (existing && existing.role !== UserRole.USER) {
+    throw new Error(
+      'Production demo seed refuses to modify an existing privileged account',
+    );
+  }
+  return upsertUser(manager, DEMO_CUSTOMER_EMAIL, password, UserRole.USER);
 }
 
 async function upsertUser(

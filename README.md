@@ -53,3 +53,6 @@ Run `npm run migration:run:prod` before `npm run start:prod`. Production startup
 requires valid `PORT`, `FRONTEND_ORIGIN`, database, and JWT configuration and
 fails without printing secret values. `FRONTEND_ORIGIN` must be the exact
 HTTP(S) storefront origin; wildcard CORS is not supported.
+
+The complete Neon + Render + Vercel free deployment procedure is documented in
+[docs/free-deployment.md](./docs/free-deployment.md).

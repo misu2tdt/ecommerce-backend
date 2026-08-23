@@ -3,6 +3,7 @@ import {
   assertSafeDemoSeedDatabase,
   DEMO_DEVELOPMENT_DATABASE,
   DEMO_TEST_DATABASE,
+  PRODUCTION_DEMO_CONFIRMATION,
 } from './demo-seed-safety';
 
 function dataSourceWith(database: string) {
@@ -34,7 +35,7 @@ describe('assertSafeDemoSeedDatabase', () => {
         'development',
         'production',
       ),
-    ).toThrow('disabled when NODE_ENV=production');
+    ).toThrow('disabled in production');
   });
 
   it.each([
@@ -69,5 +70,56 @@ describe('assertSafeDemoSeedDatabase', () => {
         'development',
       ),
     ).toThrow('requires NODE_ENV=test');
+  });
+
+  it('requires two explicit confirmations for an idempotent production demo seed', () => {
+    const production = dataSourceWith('portfolio_store');
+    expect(() =>
+      assertSafeDemoSeedDatabase(production, 'production', 'production', {
+        confirmation: PRODUCTION_DEMO_CONFIRMATION,
+        database: 'portfolio_store',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertSafeDemoSeedDatabase(production, 'production', 'production', {
+        confirmation: PRODUCTION_DEMO_CONFIRMATION,
+        database: 'another_database',
+      }),
+    ).toThrow('database confirmation does not match');
+  });
+
+  it.each(['postgres', 'template0', 'template1'])(
+    'refuses reserved production database %s',
+    (database) => {
+      expect(() =>
+        assertSafeDemoSeedDatabase(
+          dataSourceWith(database),
+          'production',
+          'production',
+          {
+            confirmation: PRODUCTION_DEMO_CONFIRMATION,
+            database,
+          },
+        ),
+      ).toThrow('refuses a reserved database');
+    },
+  );
+
+  it('resolves and confirms a production database name from DATABASE_URL', () => {
+    const dataSource = {
+      options: {
+        type: 'postgres',
+        url: 'postgresql://app:secret@ep-example.neon.tech/portfolio_store',
+        synchronize: false,
+        dropSchema: false,
+      } as DataSourceOptions & { url: string },
+    };
+
+    expect(() =>
+      assertSafeDemoSeedDatabase(dataSource, 'production', 'production', {
+        confirmation: PRODUCTION_DEMO_CONFIRMATION,
+        database: 'portfolio_store',
+      }),
+    ).not.toThrow();
   });
 });

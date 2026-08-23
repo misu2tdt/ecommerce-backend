@@ -1,4 +1,8 @@
-import { InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CloudinaryImageStorageService } from './cloudinary-image-storage.service';
 
@@ -35,13 +39,37 @@ describe('CloudinaryImageStorageService', () => {
 
   afterEach(() => loggerErrorSpy.mockRestore());
 
-  it('fails clearly when required configuration is missing', () => {
+  it('allows unrelated reads when Cloudinary is not configured', async () => {
+    mockConfig.mockClear();
+    const loggerWarnSpy = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation();
+    const disabled = new CloudinaryImageStorageService({
+      get: () => undefined,
+    } as unknown as ConfigService);
+
+    await expect(
+      disabled.uploadProductImage(42, {
+        buffer: Buffer.from([0xff, 0xd8, 0xff]),
+        mimetype: 'image/jpeg',
+      }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(mockConfig).not.toHaveBeenCalled();
+    expect(mockUploadStream).not.toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      'Cloudinary image storage is disabled.',
+    );
+    loggerWarnSpy.mockRestore();
+  });
+
+  it('rejects partial Cloudinary configuration during bootstrap', () => {
     expect(
       () =>
         new CloudinaryImageStorageService({
-          get: () => undefined,
+          get: (key: string) =>
+            key === 'CLOUDINARY_CLOUD_NAME' ? 'configured-cloud' : undefined,
         } as unknown as ConfigService),
-    ).toThrow('CLOUDINARY_CLOUD_NAME must be configured');
+    ).toThrow('CLOUDINARY_API_KEY must be configured');
   });
 
   it('uploads to the Product folder and returns secure provider metadata', async () => {

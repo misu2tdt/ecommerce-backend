@@ -1,3 +1,5 @@
+import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'node:crypto';
 import { DataSource, In } from 'typeorm';
 import { Address } from '../../src/addresses/entities/address.entity';
 import { Brand } from '../../src/brands/entities/brand.entity';
@@ -7,8 +9,10 @@ import { Category } from '../../src/categories/entities/category.entity';
 import {
   DEMO_ADMIN_EMAIL,
   DEMO_CUSTOMER_EMAIL,
+  DEMO_PASSWORD,
   seedDemoData,
 } from '../../src/database/seeds/demo-seed';
+import { PRODUCTION_DEMO_CONFIRMATION } from '../../src/database/seeds/demo-seed-safety';
 import { OrderItem } from '../../src/orders/entities/order-item.entity';
 import { OrderStatus } from '../../src/orders/entities/order-status.enum';
 import { Order } from '../../src/orders/entities/order.entity';
@@ -17,6 +21,7 @@ import { ProductVariant } from '../../src/products/entities/product-variant.enti
 import { Product } from '../../src/products/entities/product.entity';
 import { ProductReview } from '../../src/reviews/entities/product-review.entity';
 import { User } from '../../src/users/entities/user.entity';
+import { UserRole } from '../../src/users/entities/user-role.enum';
 import { WishlistItem } from '../../src/wishlist/entities/wishlist-item.entity';
 import { cleanTestDatabase, initializeTestDatabase } from './test-database';
 
@@ -86,6 +91,101 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
       payments: 0,
       verifiedReviewPurchase: true,
     });
+  });
+
+  it('seeds production portfolio data twice without creating a known ADMIN', async () => {
+    const options = {
+      target: 'production' as const,
+      nodeEnvironment: 'production',
+      productionApproval: {
+        confirmation: PRODUCTION_DEMO_CONFIRMATION,
+        database: 'ecommerce_test',
+      },
+    };
+
+    const first = await seedDemoData(dataSource, options);
+    const firstSnapshot = await demoSnapshot(dataSource);
+    const second = await seedDemoData(dataSource, options);
+    const secondSnapshot = await demoSnapshot(dataSource);
+
+    expect(second).toEqual(first);
+    expect(first.users).toBe(1);
+    expect(secondSnapshot).toEqual(firstSnapshot);
+    expect(secondSnapshot.users).toBe(1);
+    expect(
+      await dataSource.getRepository(User).findOneBy({
+        email: DEMO_ADMIN_EMAIL,
+      }),
+    ).toBeNull();
+    expect(
+      await dataSource.getRepository(User).countBy({ role: UserRole.ADMIN }),
+    ).toBe(0);
+  });
+
+  it('does not modify a separately provisioned ADMIN account', async () => {
+    const repository = dataSource.getRepository(User);
+    const operatorPassword = randomBytes(32).toString('base64url');
+    const password = await bcrypt.hash(operatorPassword, 10);
+    await repository.save(
+      repository.create({
+        email: DEMO_ADMIN_EMAIL,
+        password,
+        role: UserRole.ADMIN,
+      }),
+    );
+
+    await seedDemoData(dataSource, {
+      target: 'production',
+      nodeEnvironment: 'production',
+      productionApproval: {
+        confirmation: PRODUCTION_DEMO_CONFIRMATION,
+        database: 'ecommerce_test',
+      },
+    });
+
+    const admin = await repository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.email = :email', { email: DEMO_ADMIN_EMAIL })
+      .getOneOrFail();
+    expect(admin.role).toBe(UserRole.ADMIN);
+    expect(admin.password).toBe(password);
+    expect(await bcrypt.compare(operatorPassword, admin.password)).toBe(true);
+    expect(await bcrypt.compare(DEMO_PASSWORD, admin.password)).toBe(false);
+  });
+
+  it('refuses to overwrite a privileged account at the customer demo email', async () => {
+    const repository = dataSource.getRepository(User);
+    const password = await bcrypt.hash(
+      randomBytes(32).toString('base64url'),
+      10,
+    );
+    await repository.save(
+      repository.create({
+        email: DEMO_CUSTOMER_EMAIL,
+        password,
+        role: UserRole.ADMIN,
+      }),
+    );
+
+    await expect(
+      seedDemoData(dataSource, {
+        target: 'production',
+        nodeEnvironment: 'production',
+        productionApproval: {
+          confirmation: PRODUCTION_DEMO_CONFIRMATION,
+          database: 'ecommerce_test',
+        },
+      }),
+    ).rejects.toThrow('refuses to modify an existing privileged account');
+
+    const admin = await repository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.email = :email', { email: DEMO_CUSTOMER_EMAIL })
+      .getOneOrFail();
+    expect(admin.role).toBe(UserRole.ADMIN);
+    expect(admin.password).toBe(password);
   });
 });
 

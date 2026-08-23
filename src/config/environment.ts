@@ -30,6 +30,30 @@ export function getDatabasePort(reader: ConfigReader): number {
   return port;
 }
 
+export function getDatabaseUrl(reader: ConfigReader): string | undefined {
+  const configured = reader('DATABASE_URL');
+  if (configured === undefined || configured === '') return undefined;
+  if (typeof configured !== 'string') {
+    throw new Error('DATABASE_URL must be a PostgreSQL connection URL');
+  }
+
+  try {
+    const url = new URL(configured.trim());
+    if (
+      !['postgres:', 'postgresql:'].includes(url.protocol) ||
+      !url.hostname ||
+      !url.username ||
+      !url.password ||
+      url.pathname === '/'
+    ) {
+      throw new Error();
+    }
+    return configured.trim();
+  } catch {
+    throw new Error('DATABASE_URL must be a PostgreSQL connection URL');
+  }
+}
+
 export function getJwtExpiration(
   reader: ConfigReader,
 ): JwtSignOptions['expiresIn'] {
@@ -70,11 +94,13 @@ export function validateRuntimeEnvironment(
   const readConfig = (key: string) => environment[key];
   const nodeEnvironment = readNodeEnvironment(readConfig('NODE_ENV'));
 
-  getRequiredConfig(readConfig, 'DB_HOST');
-  getDatabasePort(readConfig);
-  getRequiredConfig(readConfig, 'DB_USERNAME');
-  getRequiredConfig(readConfig, 'DB_PASSWORD');
-  getRequiredConfig(readConfig, 'DB_NAME');
+  if (!getDatabaseUrl(readConfig)) {
+    getRequiredConfig(readConfig, 'DB_HOST');
+    getDatabasePort(readConfig);
+    getRequiredConfig(readConfig, 'DB_USERNAME');
+    getRequiredConfig(readConfig, 'DB_PASSWORD');
+    getRequiredConfig(readConfig, 'DB_NAME');
+  }
   getRequiredConfig(readConfig, 'JWT_SECRET');
   getJwtExpiration(readConfig);
 

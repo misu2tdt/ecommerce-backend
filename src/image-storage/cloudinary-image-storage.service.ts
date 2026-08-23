@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -19,22 +20,31 @@ import {
 @Injectable()
 export class CloudinaryImageStorageService extends ImageStorageService {
   private readonly logger = new Logger(CloudinaryImageStorageService.name);
+  private readonly enabled: boolean;
 
   constructor(configService: ConfigService) {
     super();
+    const readConfig = (key: string) => configService.get<unknown>(key);
+    const configuredKeys = [
+      'CLOUDINARY_CLOUD_NAME',
+      'CLOUDINARY_API_KEY',
+      'CLOUDINARY_API_SECRET',
+    ];
+    const hasAnyConfiguration = configuredKeys.some((key) => {
+      const value = readConfig(key);
+      return typeof value === 'string' && value.trim().length > 0;
+    });
+    if (!hasAnyConfiguration) {
+      this.enabled = false;
+      this.logger.warn('Cloudinary image storage is disabled.');
+      return;
+    }
+
+    this.enabled = true;
     cloudinary.config({
-      cloud_name: getRequiredConfig(
-        (key) => configService.get(key),
-        'CLOUDINARY_CLOUD_NAME',
-      ),
-      api_key: getRequiredConfig(
-        (key) => configService.get(key),
-        'CLOUDINARY_API_KEY',
-      ),
-      api_secret: getRequiredConfig(
-        (key) => configService.get(key),
-        'CLOUDINARY_API_SECRET',
-      ),
+      cloud_name: getRequiredConfig(readConfig, 'CLOUDINARY_CLOUD_NAME'),
+      api_key: getRequiredConfig(readConfig, 'CLOUDINARY_API_KEY'),
+      api_secret: getRequiredConfig(readConfig, 'CLOUDINARY_API_SECRET'),
       secure: true,
     });
   }
@@ -43,6 +53,7 @@ export class CloudinaryImageStorageService extends ImageStorageService {
     productId: number,
     file: ProductImageUpload,
   ): Promise<StoredImage> {
+    this.requireConfigured();
     try {
       const result = await new Promise<UploadApiResponse>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -92,6 +103,7 @@ export class CloudinaryImageStorageService extends ImageStorageService {
   }
 
   async deleteImage(storageKey: string): Promise<void> {
+    this.requireConfigured();
     try {
       await cloudinary.uploader.destroy(storageKey, {
         invalidate: true,
@@ -102,6 +114,12 @@ export class CloudinaryImageStorageService extends ImageStorageService {
       throw new InternalServerErrorException('Image cleanup failed', {
         cause: error,
       });
+    }
+  }
+
+  private requireConfigured(): void {
+    if (!this.enabled) {
+      throw new ServiceUnavailableException('Image storage is not configured');
     }
   }
 

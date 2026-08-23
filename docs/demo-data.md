@@ -19,8 +19,10 @@ snapshot marker, and review relationship.
 | Customer | `demo.customer@example.com` | `DemoOnly!2026` |
 | Admin    | `demo.admin@example.com`    | `DemoOnly!2026` |
 
-These credentials are fictional and intended only for local development. Never
-reuse this password for a real account or production environment.
+These deterministic credentials are fictional and intended only for local
+development. Never reuse either account or password for a public deployment.
+The guarded production portfolio seed creates only the demo customer needed by
+the order/review relationships; it never creates or updates an ADMIN account.
 
 ## Created demo content
 
