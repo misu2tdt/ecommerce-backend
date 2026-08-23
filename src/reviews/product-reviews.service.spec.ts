@@ -19,13 +19,12 @@ describe('ProductReviewsService', () => {
   const itemRepo = { createQueryBuilder: jest.fn(() => eligibilityBuilder) };
   const aggregateBuilder = chain({ getRawOne: jest.fn() });
   const reviewRepo = {
-    create:
-      jest.fn<(value: Partial<ProductReview>) => Partial<ProductReview>>(),
-    save: jest.fn<(value: Partial<ProductReview>) => Promise<ProductReview>>(),
-    findOneBy:
-      jest.fn<
-        (where: Partial<ProductReview>) => Promise<ProductReview | null>
-      >(),
+    create: jest.fn<Partial<ProductReview>, [Partial<ProductReview>]>(),
+    save: jest.fn<Promise<ProductReview>, [Partial<ProductReview>]>(),
+    findOneBy: jest.fn<
+      Promise<ProductReview | null>,
+      [Partial<ProductReview>]
+    >(),
     delete: jest.fn(),
     find: jest.fn(),
     createQueryBuilder: jest.fn(() => aggregateBuilder),

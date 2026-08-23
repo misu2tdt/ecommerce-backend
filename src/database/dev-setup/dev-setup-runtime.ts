@@ -27,11 +27,10 @@ interface ContainerInfo {
 export class LocalDatabaseRuntime implements DevSetupDependencies {
   async startDatabase(config: DevSetupConfig): Promise<void> {
     assertSafeDevSetup(config);
-    const existing = this.inspectContainer(config.containerName);
+    const existingStatus = this.inspectContainerStatus(config.containerName);
 
-    if (existing) {
-      this.assertContainerPort(existing, config);
-      if (existing.status !== 'running') {
+    if (existingStatus) {
+      if (existingStatus !== 'running') {
         console.log(
           `Starting existing PostgreSQL container ${config.containerName}...`,
         );
@@ -43,6 +42,14 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
           `Reusing running PostgreSQL container ${config.containerName}.`,
         );
       }
+
+      const existing = this.inspectContainer(config.containerName);
+      if (!existing || existing.status !== 'running') {
+        throw new Error(
+          `PostgreSQL container ${config.containerName} did not start`,
+        );
+      }
+      this.assertContainerPort(existing, config);
       return;
     }
 
@@ -188,18 +195,8 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
   }
 
   private inspectContainer(containerName: string): ContainerInfo | undefined {
-    const inspection = runCommand(
-      'docker',
-      ['inspect', '--format', '{{.State.Status}}', containerName],
-      { allowFailure: true },
-    );
-    if (inspection.status !== 0) {
-      if (/no such (object|container)/i.test(inspection.stderr))
-        return undefined;
-      throw new Error(
-        `Unable to inspect Docker container: ${safeError(inspection)}`,
-      );
-    }
+    const status = this.inspectContainerStatus(containerName);
+    if (!status) return undefined;
 
     const ports = runCommand('docker', ['port', containerName, '5432/tcp'], {
       allowFailure: true,
@@ -213,7 +210,23 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
       .filter((value): value is string => value !== undefined)
       .map(Number);
 
-    return { status: inspection.stdout.trim(), hostPorts };
+    return { status, hostPorts };
+  }
+
+  private inspectContainerStatus(containerName: string): string | undefined {
+    const inspection = runCommand(
+      'docker',
+      ['inspect', '--format', '{{.State.Status}}', containerName],
+      { allowFailure: true },
+    );
+    if (inspection.status !== 0) {
+      if (/no such (object|container)/i.test(inspection.stderr))
+        return undefined;
+      throw new Error(
+        `Unable to inspect Docker container: ${safeError(inspection)}`,
+      );
+    }
+    return inspection.stdout.trim();
   }
 
   private assertContainerPort(

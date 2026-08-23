@@ -29,7 +29,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:database-safety": "jest --config ./test/integration/jest-integration.json --runTestsByPath test/integration/database-safety.spec.ts",
-    "test:dev-setup": "jest --runInBand --runTestsByPath src/database/dev-setup/dev-setup.spec.ts",
+    "test:dev-setup": "jest --runInBand --runTestsByPath src/database/dev-setup/dev-setup.spec.ts src/database/dev-setup/dev-setup-runtime.spec.ts",
     "test:integration": "jest --config ./test/integration/jest-integration.json"
   },
   "dependencies": {

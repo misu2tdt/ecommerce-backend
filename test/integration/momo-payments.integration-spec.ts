@@ -52,7 +52,8 @@ describe('MoMo payment PostgreSQL integration with mocked HTTP', () => {
   let dataSource: DataSource;
   let http: {
     postJson: jest.Mock<
-      (url: string, body: Record<string, unknown>) => unknown
+      Promise<unknown>,
+      [string, Record<string, unknown>, number]
     >;
   };
   let payments: PaymentsService;
@@ -69,10 +70,11 @@ describe('MoMo payment PostgreSQL integration with mocked HTTP', () => {
     createBodies = [];
     http = {
       postJson: jest.fn<
-        (url: string, body: Record<string, unknown>) => unknown
+        Promise<unknown>,
+        [string, Record<string, unknown>, number]
       >((url: string, body: Record<string, unknown>) => {
         createBodies.push(body);
-        return successfulCreate(url, body);
+        return Promise.resolve(successfulCreate(url, body));
       }),
     };
     const provider = new MomoPaymentProvider(
