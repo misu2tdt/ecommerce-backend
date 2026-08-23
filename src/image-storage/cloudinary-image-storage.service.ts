@@ -54,8 +54,24 @@ export class CloudinaryImageStorageService extends ImageStorageService {
             error: UploadApiErrorResponse | undefined,
             response: UploadApiResponse | undefined,
           ) => {
-            if (error || !response)
-              return reject(error ?? new Error('No upload response'));
+            if (error) {
+              const providerError: unknown = error;
+              if (providerError instanceof Error) {
+                reject(providerError);
+              } else {
+                const details = this.getProviderErrorDetails(providerError);
+                reject(
+                  Object.assign(new Error(details.message), {
+                    http_code: details.status,
+                  }),
+                );
+              }
+              return;
+            }
+            if (!response) {
+              reject(new Error('Cloudinary upload failed'));
+              return;
+            }
             resolve(response);
           },
         );

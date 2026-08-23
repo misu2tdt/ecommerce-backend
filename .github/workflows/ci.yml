@@ -1,0 +1,70 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      FRONTEND_ORIGIN: http://localhost:3001
+      SWAGGER_ENABLED: 'false'
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5434
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-test-only
+      DB_NAME: ecommerce_test
+      ECOMMERCE_TEST_DB_PASSWORD: ci-test-only
+      JWT_SECRET: ci-only-not-for-production
+      JWT_EXPIRES_IN: 15m
+      CLOUDINARY_CLOUD_NAME: ci-disabled
+      CLOUDINARY_API_KEY: ci-disabled
+      CLOUDINARY_API_SECRET: ci-disabled
+      PAYMENT_CURRENCY: VND
+      MOMO_PARTNER_CODE: ci-disabled
+      MOMO_ACCESS_KEY: ci-disabled
+      MOMO_SECRET_KEY: ci-disabled
+      MOMO_IDENTITY_SECRET: ci-only-identity
+      MOMO_ENDPOINT: https://momo.invalid
+      MOMO_REDIRECT_URL: http://localhost:3001/payment-return
+      MOMO_IPN_URL: http://localhost:3000/payments/webhooks/momo
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: ecommerce_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ecommerce_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - run: npm test -- --runInBand
+      - run: npm run test:dev-setup
+      - name: Configure isolated test environment
+        run: cp .env.test.example .env.test
+      - run: npm run test:database-safety
+      - run: npm run test:integration
+      - run: npm run test:e2e

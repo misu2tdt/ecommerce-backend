@@ -143,12 +143,10 @@ async function demoSnapshot(dataSource: DataSource) {
       label: 'Phase 3B Demo Address',
     }),
     carts: 1,
-    cartItems: await dataSource
-      .getRepository(CartItem)
-      .countBy({
-        cartId: cart.id,
-        variantId: In(variants.map(({ id }) => id)),
-      }),
+    cartItems: await dataSource.getRepository(CartItem).countBy({
+      cartId: cart.id,
+      variantId: In(variants.map(({ id }) => id)),
+    }),
     wishlistItems: await dataSource.getRepository(WishlistItem).countBy({
       userId: customer.id,
       productId: In(products.map(({ id }) => id)),

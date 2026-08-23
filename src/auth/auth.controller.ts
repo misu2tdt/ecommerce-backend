@@ -59,7 +59,9 @@ export class AuthController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'Missing, invalid, or expired token.' })
+  @ApiUnauthorizedResponse({
+    description: 'Missing, invalid, or expired token.',
+  })
   me(@CurrentUser() user: AuthenticatedUser) {
     return user;
   }

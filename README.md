@@ -22,8 +22,10 @@ removes the container or its volume. See
 [docs/local-development.md](./docs/local-development.md) for safety details and
 demo credentials.
 
-The API is served at `http://localhost:3000`. Swagger is currently available at
-`http://localhost:3000/api/docs`.
+The API is served at `http://localhost:3000`; `GET /health` returns a minimal
+hosting health response. Swagger remains available locally at `/api/docs` and
+`/api/docs-json`. It is disabled by default when `NODE_ENV=production` and can
+be explicitly enabled with `SWAGGER_ENABLED=true`.
 
 ## Verification
 
@@ -44,3 +46,10 @@ and non-test environments before destructive cleanup.
 
 Cloudinary, Telegram, and MoMo values in `.env.example` are placeholders. Real
 provider credentials are optional for local setup and must never be committed.
+
+## Production readiness
+
+Run `npm run migration:run:prod` before `npm run start:prod`. Production startup
+requires valid `PORT`, `FRONTEND_ORIGIN`, database, and JWT configuration and
+fails without printing secret values. `FRONTEND_ORIGIN` must be the exact
+HTTP(S) storefront origin; wildcard CORS is not supported.

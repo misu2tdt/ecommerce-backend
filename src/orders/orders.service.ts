@@ -49,9 +49,9 @@ export class OrdersService {
   ) {}
 
   async checkout(userId: number, createOrderDto: CreateOrderDto) {
-    return this.checkoutPrepared(userId, async () => ({
-      dto: createOrderDto,
-    }));
+    return this.checkoutPrepared(userId, () =>
+      Promise.resolve({ dto: createOrderDto }),
+    );
   }
 
   async checkoutPrepared(

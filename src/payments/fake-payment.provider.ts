@@ -21,17 +21,17 @@ export class FakePaymentProvider extends PaymentProvider {
     this.failNext = true;
   }
 
-  async createPayment(
+  createPayment(
     input: CreateProviderPaymentInput,
   ): Promise<CreateProviderPaymentResult> {
     this.creationCount += 1;
     if (this.failNext) {
       this.failNext = false;
-      throw new Error('Fake provider creation failure');
+      return Promise.reject(new Error('Fake provider creation failure'));
     }
-    return {
+    return Promise.resolve({
       providerPaymentId: this.getProviderPaymentId(input.paymentId),
       initialStatus: PaymentStatus.PROCESSING,
-    };
+    });
   }
 }

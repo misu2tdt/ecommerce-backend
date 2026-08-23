@@ -25,9 +25,7 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(pass, user.password))) {
-      throw new UnauthorizedException(
-        'Email hoặc Mật khẩu không chính xác!',
-      );
+      throw new UnauthorizedException('Email hoặc Mật khẩu không chính xác!');
     }
 
     const payload: JwtPayload = {

@@ -2,6 +2,13 @@ import type { JwtSignOptions } from '@nestjs/jwt';
 
 export type ConfigReader = (key: string) => unknown;
 
+export interface RuntimeEnvironment {
+  nodeEnvironment: 'development' | 'test' | 'production';
+  port: number;
+  frontendOrigin?: string;
+  swaggerEnabled: boolean;
+}
+
 export function getRequiredConfig(reader: ConfigReader, key: string): string {
   const value = reader(key);
 
@@ -55,4 +62,94 @@ export function getPaymentCurrency(
       : fallback;
   if (currency !== 'VND') throw new Error('PAYMENT_CURRENCY must be VND');
   return currency;
+}
+
+export function validateRuntimeEnvironment(
+  environment: Record<string, unknown>,
+): RuntimeEnvironment {
+  const readConfig = (key: string) => environment[key];
+  const nodeEnvironment = readNodeEnvironment(readConfig('NODE_ENV'));
+
+  getRequiredConfig(readConfig, 'DB_HOST');
+  getDatabasePort(readConfig);
+  getRequiredConfig(readConfig, 'DB_USERNAME');
+  getRequiredConfig(readConfig, 'DB_PASSWORD');
+  getRequiredConfig(readConfig, 'DB_NAME');
+  getRequiredConfig(readConfig, 'JWT_SECRET');
+  getJwtExpiration(readConfig);
+
+  return {
+    nodeEnvironment,
+    port: readApplicationPort(readConfig('PORT'), nodeEnvironment),
+    frontendOrigin: readFrontendOrigin(
+      readConfig('FRONTEND_ORIGIN'),
+      nodeEnvironment,
+    ),
+    swaggerEnabled: readBoolean(
+      readConfig('SWAGGER_ENABLED'),
+      nodeEnvironment !== 'production',
+      'SWAGGER_ENABLED',
+    ),
+  };
+}
+
+function readNodeEnvironment(
+  value: unknown,
+): RuntimeEnvironment['nodeEnvironment'] {
+  const normalized =
+    typeof value === 'string' && value.trim() ? value.trim() : 'development';
+  if (!['development', 'test', 'production'].includes(normalized)) {
+    throw new Error('NODE_ENV must be development, test, or production');
+  }
+  return normalized as RuntimeEnvironment['nodeEnvironment'];
+}
+
+function readApplicationPort(
+  value: unknown,
+  nodeEnvironment: RuntimeEnvironment['nodeEnvironment'],
+): number {
+  if (
+    (value === undefined || value === '') &&
+    nodeEnvironment !== 'production'
+  ) {
+    return 3000;
+  }
+  const port = Number(getRequiredConfig(() => value, 'PORT'));
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('PORT must be an integer between 1 and 65535');
+  }
+  return port;
+}
+
+function readFrontendOrigin(
+  value: unknown,
+  nodeEnvironment: RuntimeEnvironment['nodeEnvironment'],
+): string | undefined {
+  if (
+    (value === undefined || value === '') &&
+    nodeEnvironment !== 'production'
+  ) {
+    return undefined;
+  }
+  const configured = getRequiredConfig(() => value, 'FRONTEND_ORIGIN');
+  try {
+    const url = new URL(configured);
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.origin !== configured
+    ) {
+      throw new Error();
+    }
+    return url.origin;
+  } catch {
+    throw new Error('FRONTEND_ORIGIN must be an HTTP(S) origin without a path');
+  }
+}
+
+function readBoolean(value: unknown, fallback: boolean, key: string): boolean {
+  if (value === undefined || value === '') return fallback;
+  if (typeof value !== 'string' || !['true', 'false'].includes(value.trim())) {
+    throw new Error(`${key} must be true or false`);
+  }
+  return value.trim() === 'true';
 }

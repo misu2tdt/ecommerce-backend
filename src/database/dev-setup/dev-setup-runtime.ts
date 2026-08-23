@@ -25,7 +25,7 @@ interface ContainerInfo {
 }
 
 export class LocalDatabaseRuntime implements DevSetupDependencies {
-  async startDatabase(config: DevSetupConfig): Promise<void> {
+  startDatabase(config: DevSetupConfig): Promise<void> {
     assertSafeDevSetup(config);
     const existingStatus = this.inspectContainerStatus(config.containerName);
 
@@ -50,7 +50,7 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
         );
       }
       this.assertContainerPort(existing, config);
-      return;
+      return Promise.resolve();
     }
 
     console.log(
@@ -75,6 +75,7 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
     if (!created)
       throw new Error('Compose did not create the expected container');
     this.assertContainerPort(created, config);
+    return Promise.resolve();
   }
 
   async waitForDatabase(config: DevSetupConfig): Promise<void> {
@@ -126,10 +127,10 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
 
     await maintenance.initialize();
     try {
-      const rows = (await maintenance.query(
+      const rows = await maintenance.query<Array<{ datname: string }>>(
         'SELECT datname FROM pg_database WHERE datname = ANY($1)',
         [['ecommerce_dev', 'ecommerce_test']],
-      )) as Array<{ datname: string }>;
+      );
       const missing = missingManagedDatabases(
         rows.map(({ datname }) => datname),
       );
@@ -150,14 +151,14 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
     }
   }
 
-  async runNpmScript(script: 'migration:run' | 'seed:demo'): Promise<void> {
+  runNpmScript(script: 'migration:run' | 'seed:demo'): Promise<void> {
     console.log(`Running npm script ${script}...`);
     const npmExecPath = process.env.npm_execpath;
     if (npmExecPath) {
       runCommand(process.execPath, [npmExecPath, 'run', script], {
         inheritOutput: true,
       });
-      return;
+      return Promise.resolve();
     }
 
     runCommand(
@@ -167,23 +168,24 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
         inheritOutput: true,
       },
     );
+    return Promise.resolve();
   }
 
-  async stopDatabase(config: DevSetupConfig): Promise<void> {
+  stopDatabase(config: DevSetupConfig): Promise<void> {
     assertSafeDevSetup(config);
     const existing = this.inspectContainer(config.containerName);
     if (!existing) {
       console.log(
         `PostgreSQL container ${config.containerName} does not exist.`,
       );
-      return;
+      return Promise.resolve();
     }
     this.assertContainerPort(existing, config);
     if (existing.status !== 'running') {
       console.log(
         `PostgreSQL container ${config.containerName} is already stopped.`,
       );
-      return;
+      return Promise.resolve();
     }
 
     console.log(
@@ -192,6 +194,7 @@ export class LocalDatabaseRuntime implements DevSetupDependencies {
     runCommand('docker', ['stop', '--time', '10', config.containerName], {
       inheritOutput: true,
     });
+    return Promise.resolve();
   }
 
   private inspectContainer(containerName: string): ContainerInfo | undefined {

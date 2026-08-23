@@ -1,13 +1,14 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { validateRuntimeEnvironment } from './config/environment';
 import { configureSwagger } from './docs/swagger';
 
 async function bootstrap() {
+  const runtime = validateRuntimeEnvironment(process.env);
   const app = await NestFactory.create(AppModule);
-  const frontendOrigin = process.env.FRONTEND_ORIGIN?.trim();
-  if (frontendOrigin) {
-    app.enableCors({ origin: frontendOrigin });
+  if (runtime.frontendOrigin) {
+    app.enableCors({ origin: runtime.frontendOrigin });
   }
   app.useGlobalPipes(
     new ValidationPipe({
@@ -16,7 +17,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  configureSwagger(app);
-  await app.listen(process.env.PORT ?? 3000);
+  if (runtime.swaggerEnabled) configureSwagger(app);
+  await app.listen(runtime.port);
 }
-bootstrap();
+void bootstrap();

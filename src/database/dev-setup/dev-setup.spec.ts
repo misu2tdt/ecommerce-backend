@@ -77,7 +77,7 @@ describe('development setup safety', () => {
       }),
     };
 
-    const config = loadDevSetupConfig(safeEnvironment) as DevSetupConfig;
+    const config: DevSetupConfig = loadDevSetupConfig(safeEnvironment);
     await expect(runDevSetup(config, dependencies)).resolves.toEqual([
       'ecommerce_test',
     ]);

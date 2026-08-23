@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
 
 @Controller()
@@ -11,5 +11,12 @@ export class AppController {
   @ApiOperation({ summary: 'Basic application reachability check' })
   getHello(): string {
     return this.appService.getHello();
+  }
+
+  @Get('health')
+  @ApiOperation({ summary: 'Deployment health check' })
+  @ApiOkResponse({ schema: { example: { status: 'ok' } } })
+  getHealth(): { status: 'ok' } {
+    return { status: 'ok' };
   }
 }

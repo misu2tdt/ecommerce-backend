@@ -47,6 +47,19 @@ export type AdminProduct = Omit<Product, 'images' | 'variants'> & {
   inStock: boolean;
 };
 
+interface ProductSummaryRaw {
+  minPrice: string | null;
+  maxPrice: string | null;
+  inStock: boolean;
+  averageRating: string | null;
+  reviewCount: number;
+}
+
+type ProductRatingRaw = Pick<
+  ProductSummaryRaw,
+  'averageRating' | 'reviewCount'
+>;
+
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
@@ -147,26 +160,22 @@ export class ProductsService {
       .addOrderBy('product.id', 'ASC')
       .addOrderBy('image.position', 'ASC')
       .addOrderBy('image.id', 'ASC')
-      .getRawAndEntities();
+      .getRawAndEntities<ProductSummaryRaw>();
 
-    return entities.map((product, index) =>
-      this.toPublicProduct(product, {
+    return entities.map((product, index) => {
+      const summary = raw[index];
+      if (!summary) throw new Error('Product summary row is missing');
+      return this.toPublicProduct(product, {
         minPrice:
-          raw[index].minPrice === null
-            ? null
-            : parseVndAmount(raw[index].minPrice),
+          summary.minPrice === null ? null : parseVndAmount(summary.minPrice),
         maxPrice:
-          raw[index].maxPrice === null
-            ? null
-            : parseVndAmount(raw[index].maxPrice),
-        inStock: raw[index].inStock === true,
+          summary.maxPrice === null ? null : parseVndAmount(summary.maxPrice),
+        inStock: summary.inStock === true,
         averageRating:
-          raw[index].averageRating === null
-            ? null
-            : Number(raw[index].averageRating),
-        reviewCount: Number(raw[index].reviewCount),
-      }),
-    );
+          summary.averageRating === null ? null : Number(summary.averageRating),
+        reviewCount: Number(summary.reviewCount),
+      });
+    });
   }
 
   async findAllForAdmin(): Promise<AdminProduct[]> {
@@ -223,9 +232,11 @@ export class ProductsService {
       .addOrderBy('image.id', 'ASC')
       .addOrderBy('variant.position', 'ASC')
       .addOrderBy('variant.id', 'ASC')
-      .getRawAndEntities();
+      .getRawAndEntities<ProductRatingRaw>();
     const product = entities[0];
     if (!product) throw new NotFoundException('Product not found');
+    const rating = raw[0];
+    if (!rating) throw new Error('Product rating row is missing');
     const variants = product.variants ?? [];
     const prices = variants.map((variant) => variant.price);
     return this.toPublicProduct(product, {
@@ -233,8 +244,8 @@ export class ProductsService {
       maxPrice: prices.length ? Math.max(...prices) : null,
       inStock: variants.some((variant) => variant.stock > 0),
       averageRating:
-        raw[0].averageRating === null ? null : Number(raw[0].averageRating),
-      reviewCount: Number(raw[0].reviewCount),
+        rating.averageRating === null ? null : Number(rating.averageRating),
+      reviewCount: Number(rating.reviewCount),
       variants: variants.map(
         ({ id, sku, name, price, stock, attributes, position }) => ({
           id,
@@ -268,8 +279,9 @@ export class ProductsService {
       product.brand = brand;
     }
 
-    const { categoryId: _categoryId, brandId: _brandId, ...fields } = dto;
-    Object.assign(product, fields);
+    if (dto.name !== undefined) product.name = dto.name;
+    if (dto.description !== undefined) product.description = dto.description;
+    if (dto.status !== undefined) product.status = dto.status;
     return this.productsRepository.save(product);
   }
 
@@ -323,13 +335,36 @@ export class ProductsService {
       | 'variants'
     >,
   ): PublicProduct {
-    const { images = [], variants: _variants, ...fields } = product;
+    const { images = [] } = product;
+    const fields: Omit<Product, 'images' | 'variants'> = {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      status: product.status,
+      categoryId: product.categoryId,
+      category: product.category,
+      brandId: product.brandId,
+      brand: product.brand,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    };
     return {
       ...fields,
       ...summary,
-      images: images.map(
-        ({ storageKey: _storageKey, product: _product, ...image }) => image,
-      ),
+      images: images.map((image) => this.toPublicProductImage(image)),
+    };
+  }
+
+  private toPublicProductImage(image: ProductImage): PublicProductImage {
+    return {
+      id: image.id,
+      url: image.url,
+      altText: image.altText,
+      position: image.position,
+      isPrimary: image.isPrimary,
+      productId: image.productId,
+      createdAt: image.createdAt,
     };
   }
 

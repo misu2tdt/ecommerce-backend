@@ -16,7 +16,9 @@ export class UsersService {
     const { email, password } = createUserDto;
 
     // 1. Kiểm tra xem email đã có ai dùng chưa
-    const existingUser = await this.usersRepository.findOne({ where: { email } });
+    const existingUser = await this.usersRepository.findOne({
+      where: { email },
+    });
     if (existingUser) {
       throw new ConflictException('Email này đã được đăng ký!');
     }

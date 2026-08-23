@@ -1,6 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { User } from '../users/entities/user.entity';
 import { AddressesService } from './addresses.service';
 import { Address } from './entities/address.entity';
 

@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BrandsModule } from './brands/brands.module';
 import { CategoriesModule } from './categories/categories.module';
+import { validateRuntimeEnvironment } from './config/environment';
 import { createDatabaseOptions } from './database/database-options';
 import { databaseEntities } from './database/entities';
 import { OrdersModule } from './orders/orders.module';
@@ -22,6 +23,10 @@ import { PaymentsModule } from './payments/payments.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: (environment) => {
+        validateRuntimeEnvironment(environment);
+        return environment;
+      },
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
