@@ -31,7 +31,7 @@ continues without TLS.
 The repository `render.yaml` defines a free Node web service with:
 
 - Node `22.22.0`
-- build command `npm ci && npm run build`
+- build command `npm ci --include=dev && npm run build`
 - start command `npm run start:prod`
 - health check `/health`
 - automatic deploys disabled so migrations remain deliberate
@@ -63,7 +63,7 @@ For the first deployment and every release containing migrations:
 1. Check out the exact backend revision being deployed in a trusted local or CI
    environment.
 2. Set `NODE_ENV` and `DATABASE_URL` for the target Neon database.
-3. Run `npm ci`, `npm run build`, then `npm run migration:show` if using the
+3. Run `npm ci --include=dev`, `npm run build`, then `npm run migration:show` if using the
    TypeScript datasource locally.
 4. Run `npm run migration:run:prod` once.
 5. Confirm the migration command succeeds before triggering the matching manual
