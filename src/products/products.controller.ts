@@ -229,6 +229,16 @@ export class ProductsController {
     return this.productsService.remove(id);
   }
 
+  @Get('filters')
+  @ApiOperation({
+    summary: 'Get available catalog filter facets and options',
+    description:
+      'Returns categories, brands, available sizes, colors, and min/max price range from active catalog variants.',
+  })
+  getFilterOptions() {
+    return this.productsService.getFilterOptions();
+  }
+
   @Get('slug/:slug')
   @ApiOkResponse({ schema: publicProductDetailSchema })
   @ApiOperation({

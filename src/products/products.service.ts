@@ -16,7 +16,7 @@ import { Category } from '../categories/entities/category.entity';
 import { ImageStorageService } from '../image-storage/image-storage.service';
 import { parseVndAmount } from '../money/vnd-money';
 import { CreateProductDto } from './dto/create-product.dto';
-import { ProductQueryDto } from './dto/product-query.dto';
+import { ProductQueryDto, ProductSort } from './dto/product-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductStatus } from './entities/product-status.enum';
 import { ProductImage } from './entities/product-image.entity';
@@ -46,6 +46,15 @@ export type AdminProduct = Omit<Product, 'images' | 'variants'> & {
   maxPrice: number | null;
   inStock: boolean;
 };
+
+export interface CatalogFilterOptions {
+  categories: Array<{ id: number; name: string; slug: string }>;
+  brands: Array<{ id: number; name: string; slug: string }>;
+  sizes: string[];
+  colors: string[];
+  minPrice: number;
+  maxPrice: number;
+}
 
 interface ProductSummaryRaw {
   minPrice: string | null;
@@ -155,12 +164,93 @@ export class ProductsService {
       });
     }
 
-    const { entities, raw } = await builder
-      .orderBy('product.name', 'ASC')
-      .addOrderBy('product.id', 'ASC')
-      .addOrderBy('image.position', 'ASC')
-      .addOrderBy('image.id', 'ASC')
-      .getRawAndEntities<ProductSummaryRaw>();
+    const hasVariantFilter =
+      (query.size && query.size.length > 0) ||
+      (query.color && query.color.length > 0) ||
+      query.minPrice !== undefined ||
+      query.maxPrice !== undefined ||
+      query.inStock === true;
+
+    if (hasVariantFilter) {
+      const variantConditions: string[] = [
+        'v."productId" = product.id',
+        'v."isActive" = true',
+      ];
+      const variantParams: Record<string, unknown> = {};
+
+      if (query.size && query.size.length > 0) {
+        variantConditions.push(`v.attributes->>'size' IN (:...filterSizes)`);
+        variantParams.filterSizes = query.size;
+      }
+
+      if (query.color && query.color.length > 0) {
+        variantConditions.push(`v.attributes->>'color' IN (:...filterColors)`);
+        variantParams.filterColors = query.color;
+      }
+
+      if (query.minPrice !== undefined) {
+        variantConditions.push(`v."price" >= :filterMinPrice`);
+        variantParams.filterMinPrice = query.minPrice;
+      }
+
+      if (query.maxPrice !== undefined) {
+        variantConditions.push(`v."price" <= :filterMaxPrice`);
+        variantParams.filterMaxPrice = query.maxPrice;
+      }
+
+      if (query.inStock === true) {
+        variantConditions.push(`v."stock" > 0`);
+      }
+
+      builder.andWhere(
+        `EXISTS (SELECT 1 FROM "product_variants" v WHERE ${variantConditions.join(' AND ')})`,
+        variantParams,
+      );
+    }
+
+    const sort = query.sort ?? ProductSort.FEATURED;
+    switch (sort) {
+      case ProductSort.PRICE_ASC:
+        builder
+          .orderBy(
+            '(SELECT MIN(v."price") FROM "product_variants" v WHERE v."productId" = product.id AND v."isActive" = true)',
+            'ASC',
+            'NULLS LAST',
+          )
+          .addOrderBy('product.name', 'ASC')
+          .addOrderBy('product.id', 'ASC');
+        break;
+      case ProductSort.PRICE_DESC:
+        builder
+          .orderBy(
+            '(SELECT MIN(v."price") FROM "product_variants" v WHERE v."productId" = product.id AND v."isActive" = true)',
+            'DESC',
+            'NULLS LAST',
+          )
+          .addOrderBy('product.name', 'ASC')
+          .addOrderBy('product.id', 'ASC');
+        break;
+      case ProductSort.NAME_ASC:
+        builder.orderBy('product.name', 'ASC').addOrderBy('product.id', 'ASC');
+        break;
+      case ProductSort.NAME_DESC:
+        builder.orderBy('product.name', 'DESC').addOrderBy('product.id', 'ASC');
+        break;
+      case ProductSort.NEWEST:
+        builder
+          .orderBy('product.createdAt', 'DESC')
+          .addOrderBy('product.id', 'DESC');
+        break;
+      case ProductSort.FEATURED:
+      default:
+        builder.orderBy('product.name', 'ASC').addOrderBy('product.id', 'ASC');
+        break;
+    }
+
+    builder.addOrderBy('image.position', 'ASC').addOrderBy('image.id', 'ASC');
+
+    const { entities, raw } =
+      await builder.getRawAndEntities<ProductSummaryRaw>();
 
     return entities.map((product, index) => {
       const summary = raw[index];
@@ -176,6 +266,130 @@ export class ProductsService {
         reviewCount: Number(summary.reviewCount),
       });
     });
+  }
+
+  async getFilterOptions(): Promise<CatalogFilterOptions> {
+    const [categories, brands, variants] = await Promise.all([
+      this.categoriesRepository
+        .createQueryBuilder('c')
+        .innerJoin(Product, 'p', 'p.categoryId = c.id')
+        .where('p.status = :status', { status: ProductStatus.ACTIVE })
+        .select(['c.id AS id', 'c.name AS name', 'c.slug AS slug'])
+        .groupBy('c.id')
+        .addGroupBy('c.name')
+        .addGroupBy('c.slug')
+        .orderBy('c.name', 'ASC')
+        .addOrderBy('c.id', 'ASC')
+        .getRawMany<{ id: number | string; name: string; slug: string }>(),
+      this.brandsRepository
+        .createQueryBuilder('b')
+        .innerJoin(Product, 'p', 'p.brandId = b.id')
+        .where('p.status = :status', { status: ProductStatus.ACTIVE })
+        .select(['b.id AS id', 'b.name AS name', 'b.slug AS slug'])
+        .groupBy('b.id')
+        .addGroupBy('b.name')
+        .addGroupBy('b.slug')
+        .orderBy('b.name', 'ASC')
+        .addOrderBy('b.id', 'ASC')
+        .getRawMany<{ id: number | string; name: string; slug: string }>(),
+      this.productsRepository.manager
+        .createQueryBuilder(ProductVariant, 'v')
+        .innerJoin('v.product', 'p')
+        .select('v.price', 'price')
+        .addSelect('v.attributes', 'attributes')
+        .where('p.status = :status', { status: ProductStatus.ACTIVE })
+        .andWhere('v.isActive = true')
+        .getRawMany<{ price: string; attributes: Record<string, string> }>(),
+    ]);
+
+    const sizeSet = new Set<string>();
+    const colorSet = new Set<string>();
+    const prices: number[] = [];
+
+    for (const row of variants) {
+      if (row.price !== null && row.price !== undefined) {
+        prices.push(parseVndAmount(row.price));
+      }
+      if (row.attributes) {
+        if (
+          typeof row.attributes.size === 'string' &&
+          row.attributes.size.trim()
+        ) {
+          sizeSet.add(row.attributes.size.trim());
+        }
+        if (
+          typeof row.attributes.color === 'string' &&
+          row.attributes.color.trim()
+        ) {
+          colorSet.add(row.attributes.color.trim());
+        }
+      }
+    }
+
+    const standardSizeOrder: Record<string, number> = {
+      XXS: 1,
+      XS: 2,
+      S: 3,
+      M: 4,
+      L: 5,
+      XL: 6,
+      XXL: 7,
+      '2XL': 7,
+      '3XL': 8,
+    };
+
+    const sortedSizes = Array.from(sizeSet).sort((a, b) => {
+      const aUpper = a.toUpperCase();
+      const bUpper = b.toUpperCase();
+      const aWeight = standardSizeOrder[aUpper];
+      const bWeight = standardSizeOrder[bUpper];
+
+      if (aWeight !== undefined && bWeight !== undefined) {
+        if (aWeight !== bWeight) {
+          return aWeight - bWeight;
+        }
+        return a.localeCompare(b);
+      }
+      if (aWeight !== undefined) return -1;
+      if (bWeight !== undefined) return 1;
+
+      const aNum = Number(a);
+      const bNum = Number(b);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        if (aNum !== bNum) {
+          return aNum - bNum;
+        }
+        return a.localeCompare(b);
+      }
+      if (!isNaN(aNum)) return -1;
+      if (!isNaN(bNum)) return 1;
+
+      return a.localeCompare(b);
+    });
+
+    const sortedColors = Array.from(colorSet).sort((a, b) =>
+      a.localeCompare(b),
+    );
+
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+
+    return {
+      categories: categories.map((c) => ({
+        id: Number(c.id),
+        name: c.name,
+        slug: c.slug,
+      })),
+      brands: brands.map((b) => ({
+        id: Number(b.id),
+        name: b.name,
+        slug: b.slug,
+      })),
+      sizes: sortedSizes,
+      colors: sortedColors,
+      minPrice,
+      maxPrice,
+    };
   }
 
   async findAllForAdmin(): Promise<AdminProduct[]> {
