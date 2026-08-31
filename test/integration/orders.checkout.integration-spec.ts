@@ -12,6 +12,7 @@ import { ProductsService } from '../../src/products/products.service';
 import { Category } from '../../src/categories/entities/category.entity';
 import { Brand } from '../../src/brands/entities/brand.entity';
 import { ImageStorageService } from '../../src/image-storage/image-storage.service';
+import { PromotionsService } from '../../src/promotions/promotions.service';
 import { TelegramService } from '../../src/telegram/telegram.service';
 import { UserRole } from '../../src/users/entities/user-role.enum';
 import { User } from '../../src/users/entities/user.entity';
@@ -32,9 +33,14 @@ describe('Variant checkout PostgreSQL integration', () => {
   beforeEach(async () => {
     await cleanTestDatabase(dataSource);
     sendMessage = jest.fn().mockResolvedValue(undefined);
-    service = new OrdersService(dataSource, {
-      sendMessage,
-    } as unknown as TelegramService);
+    const promotions = new PromotionsService(dataSource);
+    service = new OrdersService(
+      dataSource,
+      {
+        sendMessage,
+      } as unknown as TelegramService,
+      promotions,
+    );
   });
   afterAll(async () => {
     if (dataSource?.isInitialized) {

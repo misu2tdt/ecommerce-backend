@@ -14,6 +14,7 @@ import { ProductStatus } from '../products/entities/product-status.enum';
 import { ProductVariant } from '../products/entities/product-variant.entity';
 import { Product } from '../products/entities/product.entity';
 import { TelegramService } from '../telegram/telegram.service';
+import { PromotionsService } from '../promotions/promotions.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderStatus } from './entities/order-status.enum';
@@ -46,6 +47,7 @@ export class OrdersService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly telegramService: TelegramService,
+    private readonly promotionsService: PromotionsService,
   ) {}
 
   async checkout(userId: number, createOrderDto: CreateOrderDto) {
@@ -102,15 +104,50 @@ export class OrdersService {
         }
       }
 
-      let totalPrice = 0;
+      let subtotalPrice = 0;
+      for (let index = 0; index < normalizedItems.length; index += 1) {
+        const requested = normalizedItems[index];
+        const variant = locked[index].variant;
+        subtotalPrice = addVndAmounts(
+          subtotalPrice,
+          multiplyVndAmount(variant.price, requested.quantity),
+        );
+      }
+
+      let discountPrice = 0;
+      let totalPrice = subtotalPrice;
+      let couponCode: string | null = null;
+      let couponType: string | null = null;
+      let couponValue: number | null = null;
+
+      if (prepared.dto.couponCode) {
+        const coupon = await this.promotionsService.findAndValidate(
+          prepared.dto.couponCode,
+          subtotalPrice,
+          new Date(),
+          manager,
+        );
+        const pricing = this.promotionsService.calculatePricing(
+          subtotalPrice,
+          coupon,
+        );
+        discountPrice = pricing.discount;
+        totalPrice = pricing.total;
+        couponCode = coupon.code;
+        couponType = coupon.type;
+        couponValue = coupon.value;
+      } else {
+        const pricing = this.promotionsService.calculatePricing(
+          subtotalPrice,
+          null,
+        );
+        totalPrice = pricing.total;
+      }
+
       const items: OrderItem[] = [];
       for (let index = 0; index < normalizedItems.length; index += 1) {
         const requested = normalizedItems[index];
         const variant = locked[index].variant;
-        totalPrice = addVndAmounts(
-          totalPrice,
-          multiplyVndAmount(variant.price, requested.quantity),
-        );
         variant.stock -= requested.quantity;
         await variantRepo.save(variant);
         variant.product = locked[index].product;
@@ -127,7 +164,12 @@ export class OrdersService {
       const order = await orderRepo.save(
         orderRepo.create({
           userId,
+          subtotalPrice,
+          discountPrice,
           totalPrice,
+          couponCode,
+          couponType,
+          couponValue,
           status: OrderStatus.PENDING,
           shippingAddress: snapshotShippingAddress(address),
           items: [],
@@ -287,7 +329,12 @@ export class OrdersService {
       id: order.id,
       userId: order.userId,
       status: order.status,
+      subtotalPrice: order.subtotalPrice,
+      discountPrice: order.discountPrice,
       totalPrice: order.totalPrice,
+      couponCode: order.couponCode,
+      couponType: order.couponType,
+      couponValue: order.couponValue,
       shippingAddress: order.shippingAddress,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,

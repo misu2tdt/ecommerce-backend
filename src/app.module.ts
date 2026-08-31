@@ -18,11 +18,14 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { CartsModule } from './carts/carts.module';
 import { PaymentsModule } from './payments/payments.module';
+import { PromotionsModule } from './promotions/promotions.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      expandVariables: true,
+      envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
       validate: (environment) => {
         validateRuntimeEnvironment(environment);
         return environment;
@@ -48,6 +51,7 @@ import { PaymentsModule } from './payments/payments.module';
     WishlistModule,
     ReviewsModule,
     PaymentsModule,
+    PromotionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

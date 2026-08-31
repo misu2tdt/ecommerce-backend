@@ -12,7 +12,11 @@ import {
 } from 'typeorm';
 import { OrderItem } from '../../orders/entities/order-item.entity';
 import { CartItem } from '../../carts/entities/cart-item.entity';
-import { VND_MAX_AMOUNT, vndMoneyTransformer } from '../../money/vnd-money';
+import {
+  VND_MAX_AMOUNT,
+  nullableVndMoneyTransformer,
+  vndMoneyTransformer,
+} from '../../money/vnd-money';
 import { Product } from './product.entity';
 
 @Entity('product_variants')
@@ -20,6 +24,10 @@ import { Product } from './product.entity';
 @Check(
   'CHK_product_variants_price',
   `"price" >= 0 AND "price" <= ${VND_MAX_AMOUNT}`,
+)
+@Check(
+  'CHK_product_variants_compare_at_price',
+  `"compareAtPrice" IS NULL OR ("compareAtPrice" >= 0 AND "compareAtPrice" <= ${VND_MAX_AMOUNT} AND "compareAtPrice" > "price")`,
 )
 @Check('CHK_product_variants_stock', '"stock" >= 0')
 @Check('CHK_product_variants_position', '"position" >= 0')
@@ -48,6 +56,13 @@ export class ProductVariant {
 
   @Column({ type: 'bigint', transformer: vndMoneyTransformer })
   price!: number;
+
+  @Column({
+    type: 'bigint',
+    transformer: nullableVndMoneyTransformer,
+    nullable: true,
+  })
+  compareAtPrice!: number | null;
 
   @Column({ type: 'int', default: 0 })
   stock!: number;

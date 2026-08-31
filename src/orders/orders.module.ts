@@ -6,11 +6,15 @@ import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { AuthModule } from '../auth/auth.module';
+import { PromotionsModule } from '../promotions/promotions.module';
 import { AdminOrdersController } from './admin-orders.controller';
 
 @Module({
-  // Thêm Product vào chung mảng với Order và OrderItem
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product]), AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([Order, OrderItem, Product]),
+    AuthModule,
+    PromotionsModule,
+  ],
   controllers: [OrdersController, AdminOrdersController],
   providers: [OrdersService],
   exports: [OrdersService],

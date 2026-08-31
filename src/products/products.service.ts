@@ -28,13 +28,23 @@ export type PublicProduct = Omit<Product, 'images' | 'variants'> & {
   images: PublicProductImage[];
   minPrice: number | null;
   maxPrice: number | null;
+  minCompareAtPrice?: number | null;
+  maxCompareAtPrice?: number | null;
+  hasDiscount?: boolean;
   inStock: boolean;
   averageRating: number | null;
   reviewCount: number;
   variants?: Array<
     Pick<
       ProductVariant,
-      'id' | 'sku' | 'name' | 'price' | 'stock' | 'attributes' | 'position'
+      | 'id'
+      | 'sku'
+      | 'name'
+      | 'price'
+      | 'compareAtPrice'
+      | 'stock'
+      | 'attributes'
+      | 'position'
     >
   >;
 };
@@ -59,6 +69,9 @@ export interface CatalogFilterOptions {
 interface ProductSummaryRaw {
   minPrice: string | null;
   maxPrice: string | null;
+  minCompareAtPrice: string | null;
+  maxCompareAtPrice: string | null;
+  hasDiscount: boolean;
   inStock: boolean;
   averageRating: string | null;
   reviewCount: number;
@@ -136,6 +149,18 @@ export class ProductsService {
       .addSelect(
         '(SELECT MAX(v."price") FROM "product_variants" v WHERE v."productId" = product.id AND v."isActive" = true)',
         'maxPrice',
+      )
+      .addSelect(
+        '(SELECT MIN(v."compareAtPrice") FROM "product_variants" v WHERE v."productId" = product.id AND v."isActive" = true AND v."compareAtPrice" IS NOT NULL)',
+        'minCompareAtPrice',
+      )
+      .addSelect(
+        '(SELECT MAX(v."compareAtPrice") FROM "product_variants" v WHERE v."productId" = product.id AND v."isActive" = true AND v."compareAtPrice" IS NOT NULL)',
+        'maxCompareAtPrice',
+      )
+      .addSelect(
+        'EXISTS(SELECT 1 FROM "product_variants" v WHERE v."productId" = product.id AND v."isActive" = true AND v."compareAtPrice" IS NOT NULL AND v."compareAtPrice" > v."price")',
+        'hasDiscount',
       )
       .addSelect(
         'EXISTS(SELECT 1 FROM "product_variants" v WHERE v."productId" = product.id AND v."isActive" = true AND v."stock" > 0)',
@@ -260,6 +285,15 @@ export class ProductsService {
           summary.minPrice === null ? null : parseVndAmount(summary.minPrice),
         maxPrice:
           summary.maxPrice === null ? null : parseVndAmount(summary.maxPrice),
+        minCompareAtPrice:
+          summary.minCompareAtPrice === null
+            ? null
+            : parseVndAmount(summary.minCompareAtPrice),
+        maxCompareAtPrice:
+          summary.maxCompareAtPrice === null
+            ? null
+            : parseVndAmount(summary.maxCompareAtPrice),
+        hasDiscount: summary.hasDiscount === true,
         inStock: summary.inStock === true,
         averageRating:
           summary.averageRating === null ? null : Number(summary.averageRating),
@@ -453,19 +487,42 @@ export class ProductsService {
     if (!rating) throw new Error('Product rating row is missing');
     const variants = product.variants ?? [];
     const prices = variants.map((variant) => variant.price);
+    const compareAtPrices = variants
+      .map((v) => v.compareAtPrice)
+      .filter((p): p is number => p !== null && p !== undefined);
+
     return this.toPublicProduct(product, {
       minPrice: prices.length ? Math.min(...prices) : null,
       maxPrice: prices.length ? Math.max(...prices) : null,
+      minCompareAtPrice: compareAtPrices.length
+        ? Math.min(...compareAtPrices)
+        : null,
+      maxCompareAtPrice: compareAtPrices.length
+        ? Math.max(...compareAtPrices)
+        : null,
+      hasDiscount: variants.some(
+        (v) => v.compareAtPrice !== null && v.compareAtPrice > v.price,
+      ),
       inStock: variants.some((variant) => variant.stock > 0),
       averageRating:
         rating.averageRating === null ? null : Number(rating.averageRating),
       reviewCount: Number(rating.reviewCount),
       variants: variants.map(
-        ({ id, sku, name, price, stock, attributes, position }) => ({
+        ({
           id,
           sku,
           name,
           price,
+          compareAtPrice,
+          stock,
+          attributes,
+          position,
+        }) => ({
+          id,
+          sku,
+          name,
+          price,
+          compareAtPrice,
           stock,
           attributes,
           position,
@@ -543,6 +600,9 @@ export class ProductsService {
       PublicProduct,
       | 'minPrice'
       | 'maxPrice'
+      | 'minCompareAtPrice'
+      | 'maxCompareAtPrice'
+      | 'hasDiscount'
       | 'inStock'
       | 'averageRating'
       | 'reviewCount'
@@ -603,6 +663,7 @@ export class ProductsService {
         sku: variant.sku,
         name: variant.name,
         price: variant.price,
+        compareAtPrice: variant.compareAtPrice,
         stock: variant.stock,
         attributes: variant.attributes,
         isActive: variant.isActive,

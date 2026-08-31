@@ -21,6 +21,7 @@ import { PaymentProvider } from './payment-provider';
 import { PaymentProviderAmbiguousError } from './provider-errors';
 import { PAYMENT_CURRENCY } from './payments.constants';
 import { MOMO_PROVIDER } from './momo/momo.constants';
+import { VND_MIN_PAYABLE_AMOUNT } from '../money/vnd-money';
 
 @Injectable()
 export class PaymentsService {
@@ -183,12 +184,6 @@ export class PaymentsService {
     idempotencyKey: string,
   ) {
     return this.dataSource.transaction(async (manager) => {
-      const existing = await manager.getRepository(Payment).findOne({
-        where: { idempotencyKey },
-        relations: { order: true },
-      });
-      if (existing) return this.assertReusable(existing, userId, orderId);
-
       const order = await manager.getRepository(Order).findOne({
         where: { id: orderId, userId },
         lock: { mode: 'pessimistic_write' },
@@ -196,6 +191,16 @@ export class PaymentsService {
       if (!order) throw new NotFoundException('Order not found');
       if (order.status !== OrderStatus.PENDING)
         throw new ConflictException('Only a pending Order can be paid');
+      if (order.totalPrice < VND_MIN_PAYABLE_AMOUNT) {
+        throw new BadRequestException('Order total must be at least 1,000 VND');
+      }
+
+      const existing = await manager.getRepository(Payment).findOne({
+        where: { idempotencyKey },
+        relations: { order: true },
+      });
+      if (existing) return this.assertReusable(existing, userId, orderId);
+
       if (
         await manager.getRepository(Payment).existsBy({
           orderId,

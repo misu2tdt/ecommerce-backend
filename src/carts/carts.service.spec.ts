@@ -52,9 +52,19 @@ describe('CartsService', () => {
     itemRepo.delete.mockResolvedValue({ affected: 1 });
     variantRepo.findOne.mockResolvedValue(variant());
     viewRepo.findOneOrFail.mockResolvedValue({ ...cart, items: [] });
+    const promotions = {
+      findAndValidate: jest.fn(),
+      calculatePricing: jest.fn((subtotal: number) => ({
+        subtotal,
+        discount: 0,
+        total: subtotal,
+        appliedCoupon: null,
+      })),
+    };
     service = new CartsService(
       dataSource as unknown as DataSource,
       orders as unknown as OrdersService,
+      promotions as unknown as any,
     );
   });
 

@@ -1,6 +1,7 @@
 import type { ValueTransformer } from 'typeorm';
 
 export const VND_MAX_AMOUNT = Number.MAX_SAFE_INTEGER;
+export const VND_MIN_PAYABLE_AMOUNT = 1000;
 
 export function parseVndAmount(value: unknown): number {
   const amount =
@@ -25,4 +26,11 @@ export const vndMoneyTransformer: ValueTransformer = {
   to: parseVndAmount,
   from: (value: unknown) =>
     value === null || value === undefined ? value : parseVndAmount(value),
+};
+
+export const nullableVndMoneyTransformer: ValueTransformer = {
+  to: (value: unknown) =>
+    value === null || value === undefined ? null : parseVndAmount(value),
+  from: (value: unknown) =>
+    value === null || value === undefined ? null : parseVndAmount(value),
 };

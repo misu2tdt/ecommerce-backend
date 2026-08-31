@@ -12,6 +12,7 @@ import { ProductVariant } from '../../src/products/entities/product-variant.enti
 import { Product } from '../../src/products/entities/product.entity';
 import { ProductVariantsService } from '../../src/products/product-variants.service';
 import { ProductsService } from '../../src/products/products.service';
+import { PromotionsService } from '../../src/promotions/promotions.service';
 import { TelegramService } from '../../src/telegram/telegram.service';
 import { UserRole } from '../../src/users/entities/user-role.enum';
 import { User } from '../../src/users/entities/user.entity';
@@ -136,9 +137,14 @@ describe('Product variant catalog PostgreSQL integration', () => {
       role: UserRole.USER,
     });
     const address = await createAddress(dataSource, user, 'inactive');
-    const service = new OrdersService(dataSource, {
-      sendMessage: jest.fn(),
-    } as unknown as TelegramService);
+    const promotions = new PromotionsService(dataSource);
+    const service = new OrdersService(
+      dataSource,
+      {
+        sendMessage: jest.fn(),
+      } as unknown as TelegramService,
+      promotions,
+    );
     await expect(
       service.checkout(user.id, {
         addressId: address.id,

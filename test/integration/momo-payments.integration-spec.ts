@@ -28,6 +28,7 @@ import { OrdersService } from '../../src/orders/orders.service';
 import { ProductStatus } from '../../src/products/entities/product-status.enum';
 import { ProductVariant } from '../../src/products/entities/product-variant.entity';
 import { Product } from '../../src/products/entities/product.entity';
+import { PromotionsService } from '../../src/promotions/promotions.service';
 import { TelegramService } from '../../src/telegram/telegram.service';
 import { UserRole } from '../../src/users/entities/user-role.enum';
 import { User } from '../../src/users/entities/user.entity';
@@ -83,9 +84,14 @@ describe('MoMo payment PostgreSQL integration with mocked HTTP', () => {
     );
     payments = new PaymentsService(dataSource, provider, 'VND');
     ipn = new MomoIpnService(dataSource, payments, config);
-    orders = new OrdersService(dataSource, {
-      sendMessage: jest.fn().mockResolvedValue(undefined),
-    } as unknown as TelegramService);
+    const promotions = new PromotionsService(dataSource);
+    orders = new OrdersService(
+      dataSource,
+      {
+        sendMessage: jest.fn().mockResolvedValue(undefined),
+      } as unknown as TelegramService,
+      promotions,
+    );
   });
 
   afterAll(async () => {

@@ -15,6 +15,7 @@ import { OrdersService } from '../../src/orders/orders.service';
 import { ProductStatus } from '../../src/products/entities/product-status.enum';
 import { ProductVariant } from '../../src/products/entities/product-variant.entity';
 import { Product } from '../../src/products/entities/product.entity';
+import { PromotionsService } from '../../src/promotions/promotions.service';
 import { TelegramService } from '../../src/telegram/telegram.service';
 import { UserRole } from '../../src/users/entities/user-role.enum';
 import { User } from '../../src/users/entities/user.entity';
@@ -25,7 +26,7 @@ import {
 } from './catalog-fixtures';
 import { cleanTestDatabase, initializeTestDatabase } from './test-database';
 
-describe('Payment foundation PostgreSQL integration', () => {
+describe('Payments PostgreSQL integration', () => {
   let dataSource: DataSource;
   let provider: FakePaymentProvider;
   let payments: PaymentsService;
@@ -39,9 +40,14 @@ describe('Payment foundation PostgreSQL integration', () => {
     await cleanTestDatabase(dataSource);
     provider = new FakePaymentProvider();
     payments = new PaymentsService(dataSource, provider, 'VND');
-    orders = new OrdersService(dataSource, {
-      sendMessage: jest.fn().mockResolvedValue(undefined),
-    } as unknown as TelegramService);
+    const promotions = new PromotionsService(dataSource);
+    orders = new OrdersService(
+      dataSource,
+      {
+        sendMessage: jest.fn().mockResolvedValue(undefined),
+      } as unknown as TelegramService,
+      promotions,
+    );
   });
 
   afterAll(async () => {

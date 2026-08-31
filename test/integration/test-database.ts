@@ -52,6 +52,7 @@ export async function cleanTestDatabase(dataSource: DataSource): Promise<void> {
     await manager.query('DELETE FROM "product_variants"');
     await manager.query('DELETE FROM "product_images"');
     await manager.query('DELETE FROM "products"');
+    await manager.query('DELETE FROM "coupons"');
     await manager.query('DELETE FROM "brands"');
     await manager.query('DELETE FROM "categories"');
     await manager.query('DELETE FROM "users"');

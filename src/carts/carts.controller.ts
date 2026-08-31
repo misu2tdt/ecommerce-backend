@@ -20,6 +20,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { CartsService } from './carts.service';
+import { QuoteCartDto } from '../promotions/dto/quote-cart.dto';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { CheckoutCartDto } from './dto/checkout-cart.dto';
@@ -39,6 +40,15 @@ export class CartsController {
   })
   getCart(@CurrentUser() user: AuthenticatedUser) {
     return this.cartsService.getCart(user.id);
+  }
+
+  @Post('quote')
+  @ApiOperation({
+    summary: 'Preview cart subtotal, coupon discount, and payable total',
+    description: 'Does not reserve inventory or create an order.',
+  })
+  getQuote(@CurrentUser() user: AuthenticatedUser, @Body() dto: QuoteCartDto) {
+    return this.cartsService.getQuote(user.id, dto.couponCode);
   }
 
   @Post('items')
@@ -88,6 +98,6 @@ export class CartsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CheckoutCartDto,
   ) {
-    return this.cartsService.checkout(user.id, dto.addressId);
+    return this.cartsService.checkout(user.id, dto.addressId, dto.couponCode);
   }
 }

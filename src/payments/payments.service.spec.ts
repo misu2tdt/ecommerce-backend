@@ -119,6 +119,245 @@ describe('PaymentsService state rules', () => {
     expect(payment.failureCode).toBe('DECLINED unsafe');
     expect(payment.failureMessage).toBe('Card was declined');
   });
+
+  it('A) rejects order with total < 1,000 VND and does not create payment attempt or call provider', async () => {
+    provider.reset();
+    const orderRepo = {
+      findOne: jest.fn().mockResolvedValue(orderFixture({ totalPrice: 999 })),
+    };
+    const paymentRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+    };
+    const manager = {
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+    } as unknown as EntityManager;
+    const dataSource = {
+      transaction: jest.fn(async (cb: (m: EntityManager) => unknown) =>
+        cb(manager),
+      ),
+    } as unknown as DataSource;
+
+    const testService = new PaymentsService(dataSource, provider, 'VND');
+
+    await expect(
+      testService.createForOrder(7, 3, 'payment-key-001'),
+    ).rejects.toThrow('Order total must be at least 1,000 VND');
+
+    expect(provider.creationCount).toBe(0);
+    expect(provider.lastInput).toBeNull();
+  });
+
+  it('B) rejects order with total < 1,000 VND even when an existing reusable PENDING payment exists without calling provider', async () => {
+    provider.reset();
+    const orderRepo = {
+      findOne: jest.fn().mockResolvedValue(orderFixture({ totalPrice: 999 })),
+    };
+    const existingPayment = paymentFixture({
+      amount: 999,
+      status: PaymentStatus.PENDING,
+    });
+    const paymentRepo = {
+      findOne: jest.fn().mockResolvedValue(existingPayment),
+    };
+    const manager = {
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+    } as unknown as EntityManager;
+    const dataSource = {
+      transaction: jest.fn(async (cb: (m: EntityManager) => unknown) =>
+        cb(manager),
+      ),
+    } as unknown as DataSource;
+
+    const testService = new PaymentsService(dataSource, provider, 'VND');
+
+    await expect(
+      testService.createForOrder(7, 3, 'payment-key-001'),
+    ).rejects.toThrow('Order total must be at least 1,000 VND');
+
+    expect(provider.creationCount).toBe(0);
+    expect(provider.lastInput).toBeNull();
+  });
+
+  it('C) allows order with total >= 1,000 VND', async () => {
+    const order = orderFixture({ totalPrice: 1000 });
+    const payment = paymentFixture({
+      amount: 1000,
+      status: PaymentStatus.PROCESSING,
+    });
+    const orderRepo = {
+      findOne: jest.fn().mockResolvedValue(order),
+      findOneOrFail: jest.fn().mockResolvedValue(order),
+    };
+    const paymentRepo = {
+      findOne: jest.fn().mockResolvedValue(payment),
+      findOneOrFail: jest.fn().mockResolvedValue(payment),
+      findOneByOrFail: jest.fn().mockResolvedValue(payment),
+      save: jest.fn().mockResolvedValue(payment),
+      existsBy: jest.fn().mockResolvedValue(false),
+    };
+    const manager = {
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        into: jest.fn().mockReturnThis(),
+        values: jest.fn().mockReturnThis(),
+        orIgnore: jest.fn().mockReturnThis(),
+        returning: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ identifiers: [{ id: 1 }] }),
+      }),
+    } as unknown as EntityManager;
+    const dataSource = {
+      transaction: jest.fn(async (cb: (m: EntityManager) => unknown) =>
+        cb(manager),
+      ),
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+    } as unknown as DataSource;
+
+    const testService = new PaymentsService(dataSource, provider, 'VND');
+    const result = await testService.createForOrder(7, 3, 'payment-key-001');
+    expect(result.amount).toBe(1000);
+  });
+
+  it('D) reuses existing idempotent payment for discounted valid order preserving exact totalPrice (718,200 VND)', async () => {
+    const order = orderFixture({
+      subtotalPrice: 798000,
+      discountPrice: 79800,
+      totalPrice: 718200,
+    });
+    const payment = paymentFixture({
+      amount: 718200,
+      status: PaymentStatus.PROCESSING,
+    });
+    const orderRepo = {
+      findOne: jest.fn().mockResolvedValue(order),
+      findOneOrFail: jest.fn().mockResolvedValue(order),
+    };
+    const paymentRepo = {
+      findOne: jest.fn().mockResolvedValue(payment),
+      findOneOrFail: jest.fn().mockResolvedValue(payment),
+      findOneByOrFail: jest.fn().mockResolvedValue(payment),
+      save: jest.fn().mockResolvedValue(payment),
+      existsBy: jest.fn().mockResolvedValue(false),
+    };
+    const manager = {
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        into: jest.fn().mockReturnThis(),
+        values: jest.fn().mockReturnThis(),
+        orIgnore: jest.fn().mockReturnThis(),
+        returning: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ identifiers: [{ id: 1 }] }),
+      }),
+    } as unknown as EntityManager;
+    const dataSource = {
+      transaction: jest.fn(async (cb: (m: EntityManager) => unknown) =>
+        cb(manager),
+      ),
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+    } as unknown as DataSource;
+
+    const testService = new PaymentsService(dataSource, provider, 'VND');
+    const result = await testService.createForOrder(7, 3, 'payment-key-001');
+    expect(result.amount).toBe(718200);
+  });
+
+  it('E) dispatches exact discounted order totalPrice (718,200 VND) to provider when creating new payment attempt', async () => {
+    provider.reset();
+    const order = orderFixture({
+      id: 3,
+      userId: 7,
+      subtotalPrice: 798000,
+      discountPrice: 79800,
+      totalPrice: 718200,
+      status: OrderStatus.PENDING,
+    });
+
+    let currentPaymentState: Payment = paymentFixture({
+      id: 1,
+      orderId: 3,
+      idempotencyKey: 'new-discounted-idemp-key',
+      amount: 718200,
+      status: PaymentStatus.PENDING,
+      providerPaymentId: null,
+    });
+
+    const orderRepo = {
+      findOne: jest.fn().mockResolvedValue(order),
+      findOneOrFail: jest.fn().mockResolvedValue(order),
+    };
+    const paymentRepo = {
+      findOne: jest.fn().mockResolvedValue(null), // No existing payment for idempotency key
+      findOneOrFail: jest
+        .fn()
+        .mockImplementation(async () => currentPaymentState),
+      findOneByOrFail: jest
+        .fn()
+        .mockImplementation(async () => currentPaymentState),
+      existsBy: jest.fn().mockResolvedValue(false),
+      save: jest.fn().mockImplementation(async (entity: Payment) => {
+        currentPaymentState = { ...currentPaymentState, ...entity };
+        return currentPaymentState;
+      }),
+    };
+
+    const manager = {
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        into: jest.fn().mockReturnThis(),
+        values: jest.fn().mockReturnThis(),
+        orIgnore: jest.fn().mockReturnThis(),
+        returning: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ identifiers: [{ id: 1 }] }),
+      }),
+    } as unknown as EntityManager;
+
+    const dataSource = {
+      transaction: jest.fn(async (cb: (m: EntityManager) => unknown) =>
+        cb(manager),
+      ),
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+    } as unknown as DataSource;
+
+    const testService = new PaymentsService(dataSource, provider, 'VND');
+    const result = await testService.createForOrder(
+      7,
+      3,
+      'new-discounted-idemp-key',
+    );
+
+    // 1. Persisted payment amount assertion
+    expect(result.amount).toBe(718200);
+
+    // 2. Provider call count assertion (exactly once)
+    expect(provider.creationCount).toBe(1);
+
+    // 3. Exact provider request payload assertion
+    expect(provider.lastInput).toEqual({
+      paymentId: 1,
+      orderId: 3,
+      amount: 718200,
+      currency: 'VND',
+      idempotencyKey: 'new-discounted-idemp-key',
+    });
+  });
 });
 
 function privateMethod<T>(target: object, name: string): T {
@@ -159,7 +398,12 @@ function orderFixture(overrides: Partial<Order> = {}): Order {
     id: 3,
     userId: 7,
     user: { id: 7 } as Order['user'],
+    subtotalPrice: 400_000,
+    discountPrice: 0,
     totalPrice: 400_000,
+    couponCode: null,
+    couponType: null,
+    couponValue: null,
     status: OrderStatus.PENDING,
     shippingAddress: {} as Order['shippingAddress'],
     items: [],

@@ -8,6 +8,8 @@ import { addVndAmounts, multiplyVndAmount } from '../money/vnd-money';
 import { OrdersService } from '../orders/orders.service';
 import { ProductStatus } from '../products/entities/product-status.enum';
 import { ProductVariant } from '../products/entities/product-variant.entity';
+import { Coupon } from '../promotions/entities/coupon.entity';
+import { PromotionsService } from '../promotions/promotions.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { CartItem } from './entities/cart-item.entity';
@@ -18,6 +20,7 @@ export class CartsService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly ordersService: OrdersService,
+    private readonly promotionsService: PromotionsService,
   ) {}
 
   async getCart(userId: number) {
@@ -26,6 +29,35 @@ export class CartsService {
       return cart.id;
     });
     return this.loadCartView(cartId, userId);
+  }
+
+  async getQuote(userId: number, couponCode?: string) {
+    const cart = await this.getCart(userId);
+    const availableItems = cart.items.filter((item) => item.available);
+    if (availableItems.length === 0) {
+      throw new BadRequestException('Cannot quote an empty cart');
+    }
+    const subtotal = availableItems.reduce(
+      (total, item) => addVndAmounts(total, item.lineTotal),
+      0,
+    );
+
+    let coupon: Coupon | null = null;
+    if (couponCode && couponCode.trim().length > 0) {
+      coupon = await this.promotionsService.findAndValidate(
+        couponCode,
+        subtotal,
+        new Date(),
+      );
+    }
+
+    const pricing = this.promotionsService.calculatePricing(subtotal, coupon);
+    return {
+      subtotal: pricing.subtotal,
+      discount: pricing.discount,
+      total: pricing.total,
+      coupon: pricing.appliedCoupon,
+    };
   }
 
   async addItem(userId: number, dto: AddCartItemDto) {
@@ -87,7 +119,7 @@ export class CartsService {
     return this.loadCartView(cartId, userId);
   }
 
-  async checkout(userId: number, addressId: number) {
+  async checkout(userId: number, addressId: number, couponCode?: string) {
     return this.ordersService.checkoutPrepared(userId, async (manager) => {
       const cart = await this.getOrCreateLockedCart(manager, userId);
       const items = await manager.getRepository(CartItem).find({
@@ -100,6 +132,7 @@ export class CartsService {
       return {
         dto: {
           addressId,
+          couponCode,
           items: items.map((item) => ({
             variantId: item.variantId,
             quantity: item.quantity,

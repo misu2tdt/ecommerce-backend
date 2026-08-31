@@ -13,6 +13,7 @@ import { WishlistItem } from '../wishlist/entities/wishlist-item.entity';
 import { ProductReview } from '../reviews/entities/product-review.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { PaymentEvent } from '../payments/entities/payment-event.entity';
+import { Coupon } from '../promotions/entities/coupon.entity';
 
 export const databaseEntities = [
   User,
@@ -30,4 +31,5 @@ export const databaseEntities = [
   ProductReview,
   Payment,
   PaymentEvent,
+  Coupon,
 ];

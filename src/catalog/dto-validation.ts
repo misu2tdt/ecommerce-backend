@@ -4,3 +4,8 @@ export const Trim = () =>
   Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   );
+
+export const NormalizeUpper = () =>
+  Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  );

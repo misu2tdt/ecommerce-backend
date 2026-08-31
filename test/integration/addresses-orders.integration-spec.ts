@@ -10,6 +10,7 @@ import { OrdersService } from '../../src/orders/orders.service';
 import { ProductStatus } from '../../src/products/entities/product-status.enum';
 import { ProductVariant } from '../../src/products/entities/product-variant.entity';
 import { Product } from '../../src/products/entities/product.entity';
+import { PromotionsService } from '../../src/promotions/promotions.service';
 import { TelegramService } from '../../src/telegram/telegram.service';
 import { UserRole } from '../../src/users/entities/user-role.enum';
 import { User } from '../../src/users/entities/user.entity';
@@ -28,11 +29,16 @@ describe('Addresses and Order lifecycle PostgreSQL integration', () => {
 
   beforeEach(async () => {
     await cleanTestDatabase(dataSource);
+    const promotions = new PromotionsService(dataSource);
     addresses = new AddressesService(dataSource);
-    orders = new OrdersService(dataSource, {
-      sendMessage: jest.fn().mockResolvedValue(undefined),
-    } as unknown as TelegramService);
-    carts = new CartsService(dataSource, orders);
+    orders = new OrdersService(
+      dataSource,
+      {
+        sendMessage: jest.fn().mockResolvedValue(undefined),
+      } as unknown as TelegramService,
+      promotions,
+    );
+    carts = new CartsService(dataSource, orders, promotions);
   });
 
   afterAll(async () => {

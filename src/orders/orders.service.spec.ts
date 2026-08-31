@@ -61,9 +61,19 @@ describe('OrdersService lifecycle', () => {
     paymentRepo.find.mockResolvedValue([]);
     paymentRepo.save.mockImplementation(async (value) => value);
     telegram.sendMessage.mockResolvedValue(undefined);
+    const promotionsService = {
+      findAndValidate: jest.fn(),
+      calculatePricing: jest.fn((subtotal: number) => ({
+        subtotal,
+        discount: 0,
+        total: subtotal,
+        appliedCoupon: null,
+      })),
+    };
     service = new OrdersService(
       dataSource as unknown as DataSource,
       telegram as unknown as TelegramService,
+      promotionsService as unknown as any,
     );
   });
 
@@ -293,7 +303,12 @@ function order(overrides: Partial<Order> = {}): Order {
     id: 3,
     userId: 7,
     user: { id: 7 } as Order['user'],
+    subtotalPrice: 100_000,
+    discountPrice: 0,
     totalPrice: 100_000,
+    couponCode: null,
+    couponType: null,
+    couponValue: null,
     status: OrderStatus.PENDING,
     shippingAddress: {
       recipientName: 'Recipient',
@@ -351,6 +366,7 @@ function variant(overrides: Partial<ProductVariant> = {}): ProductVariant {
     sku: 'SKU-1',
     name: 'Default',
     price: 100_000,
+    compareAtPrice: null,
     stock: 5,
     attributes: {},
     isActive: true,

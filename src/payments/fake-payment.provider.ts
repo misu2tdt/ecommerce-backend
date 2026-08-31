@@ -11,7 +11,14 @@ import {
 export class FakePaymentProvider extends PaymentProvider {
   readonly provider = FAKE_PAYMENT_PROVIDER;
   creationCount = 0;
+  lastInput: CreateProviderPaymentInput | null = null;
   private failNext = false;
+
+  reset() {
+    this.creationCount = 0;
+    this.lastInput = null;
+    this.failNext = false;
+  }
 
   getProviderPaymentId(paymentId: number): string {
     return `fake_payment_${paymentId}`;
@@ -25,6 +32,7 @@ export class FakePaymentProvider extends PaymentProvider {
     input: CreateProviderPaymentInput,
   ): Promise<CreateProviderPaymentResult> {
     this.creationCount += 1;
+    this.lastInput = input;
     if (this.failNext) {
       this.failNext = false;
       return Promise.reject(new Error('Fake provider creation failure'));

@@ -18,6 +18,7 @@ import { Product } from '../../src/products/entities/product.entity';
 import { ProductsService } from '../../src/products/products.service';
 import { ProductReview } from '../../src/reviews/entities/product-review.entity';
 import { ProductReviewsService } from '../../src/reviews/product-reviews.service';
+import { PromotionsService } from '../../src/promotions/promotions.service';
 import { TelegramService } from '../../src/telegram/telegram.service';
 import { UserRole } from '../../src/users/entities/user-role.enum';
 import { User } from '../../src/users/entities/user.entity';
@@ -44,9 +45,14 @@ describe('Wishlist and verified Product reviews PostgreSQL integration', () => {
     await cleanTestDatabase(dataSource);
     wishlist = new WishlistService(dataSource);
     reviews = new ProductReviewsService(dataSource);
-    orders = new OrdersService(dataSource, {
-      sendMessage: jest.fn().mockResolvedValue(undefined),
-    } as unknown as TelegramService);
+    const promotions = new PromotionsService(dataSource);
+    orders = new OrdersService(
+      dataSource,
+      {
+        sendMessage: jest.fn().mockResolvedValue(undefined),
+      } as unknown as TelegramService,
+      promotions,
+    );
   });
 
   afterAll(async () => {

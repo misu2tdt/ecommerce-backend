@@ -50,6 +50,20 @@ export class CreateProductVariantDto {
   @Max(VND_MAX_AMOUNT)
   price!: number;
 
+  @ApiPropertyOptional({
+    type: 'integer',
+    example: 29990000,
+    minimum: 0,
+    maximum: VND_MAX_AMOUNT,
+    description:
+      'Optional compare-at reference price in integer VND (must be > price).',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(VND_MAX_AMOUNT)
+  compareAtPrice?: number | null;
+
   @ApiProperty({ type: 'integer', example: 25, minimum: 0 })
   @IsInt()
   @Min(0)

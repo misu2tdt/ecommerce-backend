@@ -1,12 +1,17 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
   IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { NormalizeUpper } from '../../catalog/dto-validation';
 
 export class OrderItemDto {
   @ApiProperty({
@@ -42,4 +47,18 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items!: OrderItemDto[];
+
+  @ApiPropertyOptional({
+    example: 'WELCOME10',
+    description: 'Optional promotional coupon code.',
+  })
+  @NormalizeUpper()
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  @Matches(/^[A-Z0-9_-]+$/, {
+    message:
+      'Code may only contain uppercase letters, numbers, underscores, and dashes',
+  })
+  couponCode?: string;
 }

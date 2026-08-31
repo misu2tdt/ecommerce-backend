@@ -50,6 +50,9 @@ export function loadTestEnvironment(): TestEnvironment {
     throw new Error('NODE_ENV in .env.test must be test');
   }
 
-  process.env.NODE_ENV = environment.NODE_ENV;
+  for (const key of requiredKeys) {
+    process.env[key] = environment[key];
+  }
+
   return environment;
 }

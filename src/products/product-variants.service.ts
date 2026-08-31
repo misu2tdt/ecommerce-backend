@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -32,12 +33,24 @@ export class ProductVariantsService {
     const sku = dto.sku.trim().toUpperCase();
     if (await this.variantsRepository.existsBy({ sku }))
       throw new ConflictException('Variant SKU already exists');
+
+    if (
+      dto.compareAtPrice !== undefined &&
+      dto.compareAtPrice !== null &&
+      dto.compareAtPrice <= dto.price
+    ) {
+      throw new BadRequestException(
+        'compareAtPrice must be greater than price',
+      );
+    }
+
     try {
       return await this.variantsRepository.save(
         this.variantsRepository.create({
           ...dto,
           sku,
           productId,
+          compareAtPrice: dto.compareAtPrice ?? null,
           attributes: dto.attributes ?? {},
           isActive: dto.isActive ?? true,
           position: dto.position ?? 0,
@@ -61,6 +74,23 @@ export class ProductVariantsService {
       productId,
     });
     if (!variant) throw new NotFoundException('Product variant not found');
+
+    const effectivePrice = dto.price !== undefined ? dto.price : variant.price;
+    const effectiveCompareAtPrice =
+      dto.compareAtPrice !== undefined
+        ? dto.compareAtPrice
+        : variant.compareAtPrice;
+
+    if (
+      effectiveCompareAtPrice !== null &&
+      effectiveCompareAtPrice !== undefined &&
+      effectiveCompareAtPrice <= effectivePrice
+    ) {
+      throw new BadRequestException(
+        'compareAtPrice must be greater than price',
+      );
+    }
+
     Object.assign(variant, dto);
     return this.variantsRepository.save(variant);
   }

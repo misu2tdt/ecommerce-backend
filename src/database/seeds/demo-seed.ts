@@ -17,6 +17,8 @@ import { ProductReview } from '../../reviews/entities/product-review.entity';
 import { UserRole } from '../../users/entities/user-role.enum';
 import { User } from '../../users/entities/user.entity';
 import { WishlistItem } from '../../wishlist/entities/wishlist-item.entity';
+import { CouponType } from '../../promotions/entities/coupon-type.enum';
+import { Coupon } from '../../promotions/entities/coupon.entity';
 import { assertSafeDemoSeedDatabase, DemoSeedTarget } from './demo-seed-safety';
 
 export const DEMO_CUSTOMER_EMAIL = 'demo.customer@example.com';
@@ -303,6 +305,7 @@ const variantDefinitions = [
     sku: 'AT-CCT-BLK-M',
     name: 'Black / M',
     price: 199000,
+    compareAtPrice: 249000,
     stock: 25,
     attributes: { size: 'M', color: 'Black' },
     position: 0,
@@ -312,6 +315,7 @@ const variantDefinitions = [
     sku: 'AT-CCT-BLK-L',
     name: 'Black / L',
     price: 199000,
+    compareAtPrice: 249000,
     stock: 20,
     attributes: { size: 'L', color: 'Black' },
     position: 1,
@@ -321,6 +325,7 @@ const variantDefinitions = [
     sku: 'AT-CCT-WHT-M',
     name: 'White / M',
     price: 199000,
+    compareAtPrice: 249000,
     stock: 15,
     attributes: { size: 'M', color: 'White' },
     position: 2,
@@ -332,6 +337,7 @@ const variantDefinitions = [
     sku: 'AT-HBT-OAT-M',
     name: 'Oatmeal / M',
     price: 259000,
+    compareAtPrice: 329000,
     stock: 18,
     attributes: { size: 'M', color: 'Oatmeal' },
     position: 0,
@@ -341,6 +347,7 @@ const variantDefinitions = [
     sku: 'AT-HBT-OAT-L',
     name: 'Oatmeal / L',
     price: 259000,
+    compareAtPrice: 329000,
     stock: 12,
     attributes: { size: 'L', color: 'Oatmeal' },
     position: 1,
@@ -350,6 +357,7 @@ const variantDefinitions = [
     sku: 'AT-HBT-SGE-L',
     name: 'Sage Green / L',
     price: 259000,
+    compareAtPrice: 329000,
     stock: 10,
     attributes: { size: 'L', color: 'Sage Green' },
     position: 2,
@@ -1004,6 +1012,7 @@ export interface DemoSeedSummary {
   brands: number;
   products: number;
   variants: number;
+  coupons: number;
   addresses: number;
   cartItems: number;
   wishlistItems: number;
@@ -1185,12 +1194,16 @@ export async function seedDemoData(
       throw new Error('Demo delivered Order invariant was not established');
     }
 
+    // 8. Upsert Phase 6E promotional coupons
+    const couponsCount = await upsertDemoCoupons(manager);
+
     return {
       users: isProduction ? 1 : 2,
       categories: categoryDefinitions.length,
       brands: brandDefinitions.length,
       products: productDefinitions.length,
       variants: variantDefinitions.length,
+      coupons: couponsCount,
       addresses: 1,
       cartItems: 2,
       wishlistItems: 1,
@@ -1282,6 +1295,10 @@ async function upsertVariant(
       sku: definition.sku,
       name: definition.name,
       price: definition.price,
+      compareAtPrice:
+        'compareAtPrice' in definition
+          ? (definition.compareAtPrice as number)
+          : null,
       stock: definition.stock,
       attributes: { ...definition.attributes },
       isActive: true,
@@ -1292,6 +1309,41 @@ async function upsertVariant(
   return manager
     .getRepository(ProductVariant)
     .findOneByOrFail({ sku: definition.sku });
+}
+
+async function upsertDemoCoupons(manager: EntityManager): Promise<number> {
+  const coupons = [
+    {
+      code: 'WELCOME10',
+      name: '10% off for orders over 300,000 VND (max 100,000 VND)',
+      type: CouponType.PERCENTAGE,
+      value: 10,
+      minSubtotal: 300000,
+      maxDiscount: 100000,
+      isActive: true,
+    },
+    {
+      code: 'STYLE50',
+      name: '50,000 VND off orders over 500,000 VND',
+      type: CouponType.FIXED,
+      value: 50000,
+      minSubtotal: 500000,
+      maxDiscount: null,
+      isActive: true,
+    },
+  ];
+
+  for (const coupon of coupons) {
+    await manager.getRepository(Coupon).upsert(
+      {
+        ...coupon,
+        startsAt: null,
+        endsAt: null,
+      },
+      ['code'],
+    );
+  }
+  return coupons.length;
 }
 
 async function upsertAddress(
@@ -1365,7 +1417,12 @@ async function upsertDeliveredOrder(
   order = await repository.save(
     repository.create({
       userId,
+      subtotalPrice: variant.price,
+      discountPrice: 0,
       totalPrice: variant.price,
+      couponCode: null,
+      couponType: null,
+      couponValue: null,
       status: OrderStatus.DELIVERED,
       shippingAddress: snapshotShippingAddress(address),
     }),

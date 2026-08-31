@@ -462,7 +462,12 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
 
     const legacyOrder = await dataSource.getRepository(Order).save({
       userId: customer.id,
+      subtotalPrice: legacyVarAir8.price,
+      discountPrice: 0,
       totalPrice: legacyVarAir8.price,
+      couponCode: null,
+      couponType: null,
+      couponValue: null,
       status: OrderStatus.DELIVERED,
       shippingAddress: snapshotShippingAddress(legacyAddress),
     });
