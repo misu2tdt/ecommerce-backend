@@ -15,10 +15,11 @@ export class TelegramService {
       '';
   }
 
-  // ĐÂY CHÍNH LÀ CÁI HÀM MÀ TYPESCRIPT ĐANG TÌM KIẾM NÀY:
   async sendMessage(message: string) {
     if (!this.botToken || !this.chatId) {
-      this.logger.warn('Thiếu Token hoặc Chat ID. Hãy kiểm tra lại file .env!');
+      this.logger.warn(
+        'Telegram bot token or chat ID is missing. Check your environment configuration.',
+      );
       return;
     }
 
@@ -36,12 +37,14 @@ export class TelegramService {
       });
 
       if (!response.ok) {
-        this.logger.error(`Lỗi gửi tin Telegram: ${response.statusText}`);
+        this.logger.error(
+          `Failed to send Telegram message: ${response.statusText}`,
+        );
       } else {
-        this.logger.log('Đã bắn tin nhắn Telegram thành công!');
+        this.logger.log('Telegram message sent successfully');
       }
     } catch (error) {
-      this.logger.error('Lỗi kết nối đến Telegram', error);
+      this.logger.error('Could not connect to Telegram', error);
     }
   }
 }

@@ -1,4 +1,7 @@
+import { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
 import { UserRole } from '../users/entities/user-role.enum';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
@@ -31,5 +34,29 @@ describe('AuthController', () => {
     };
 
     expect(controller.me(user)).toEqual(user);
+  });
+});
+
+describe('AuthController routes', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      controllers: [AuthController],
+      providers: [
+        { provide: AuthService, useValue: { login: jest.fn() } },
+        { provide: JwtService, useValue: { verifyAsync: jest.fn() } },
+      ],
+    }).compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('does not expose the removed admin-only route', async () => {
+    await request(app.getHttpServer()).get('/auth/admin-only').expect(404);
   });
 });

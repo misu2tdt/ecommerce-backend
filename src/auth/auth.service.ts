@@ -25,7 +25,7 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(pass, user.password))) {
-      throw new UnauthorizedException('Email hoặc Mật khẩu không chính xác!');
+      throw new UnauthorizedException('Invalid email or password.');
     }
 
     const payload: JwtPayload = {
@@ -35,7 +35,7 @@ export class AuthService {
     };
 
     return {
-      message: 'Đăng nhập thành công!',
+      message: 'Login successful',
       access_token: await this.jwtService.signAsync(payload),
     };
   }

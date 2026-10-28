@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { MomoIpnDto } from './dto/momo-ipn.dto';
 import { MomoIpnService } from './momo-ipn.service';
 import {
@@ -8,6 +9,9 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 
+// MoMo retries IPN callbacks, so provider traffic must never be rate limited.
+// The HMAC signature check is what authenticates these requests.
+@SkipThrottle()
 @Controller('payments/webhooks')
 @ApiTags('Payments - MoMo Webhook')
 export class MomoWebhookController {

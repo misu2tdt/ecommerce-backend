@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -7,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { BrandsModule } from './brands/brands.module';
 import { CategoriesModule } from './categories/categories.module';
 import { validateRuntimeEnvironment } from './config/environment';
+import { GLOBAL_THROTTLE } from './config/throttling';
 import { createDatabaseOptions } from './database/database-options';
 import { databaseEntities } from './database/entities';
 import { OrdersModule } from './orders/orders.module';
@@ -31,6 +34,7 @@ import { PromotionsModule } from './promotions/promotions.module';
         return environment;
       },
     }),
+    ThrottlerModule.forRoot({ throttlers: [GLOBAL_THROTTLE] }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -54,6 +58,10 @@ import { PromotionsModule } from './promotions/promotions.module';
     PromotionsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Applies the global rate limit to every route (opt out with @SkipThrottle).
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
