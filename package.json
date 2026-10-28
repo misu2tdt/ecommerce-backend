@@ -90,6 +90,9 @@
   "overrides": {
     "@nestjs/platform-express": {
       "multer": "$multer"
+    },
+    "@nestjs/swagger": {
+      "js-yaml": "5.4.1"
     }
   },
   "jest": {
