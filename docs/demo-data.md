@@ -45,6 +45,13 @@ are named `{product-slug}__{color-slug}.jpg` (48 files, for example
 `brand-*` files for the storefront home page. The slugs are the ones the seed
 produces, so `Black & Grey` becomes `black-grey`.
 
+A banner's name is simply its file name without the extension: there is no
+separate list, so a new banner is just a new file. The current set is 9 banners
+(57 images in total with the 48 product images): `banner-hero` (3:2, used by
+the home page today), `banner-hero-wide` (16:9, not used yet), five
+`category-<category-slug>` files and `brand-veloce-active` and
+`brand-monolith-studio`.
+
 `npm run images:upload -- --dir <folder>` uploads them to Cloudinary (public id
 `evergreen/demo/<file name>`, safe to rerun) and writes the committed file
 `src/database/seeds/demo-images.json`. It holds only public URLs and sizes. Add

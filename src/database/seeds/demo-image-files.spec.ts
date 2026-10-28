@@ -177,6 +177,22 @@ describe('analyzeDemoImageFolder', () => {
     expect(reportHasProblems(report)).toBe(true);
   });
 
+  it('treats banner-hero and banner-hero-wide as two separate banner slots', () => {
+    putAllProductFiles();
+    put('banner-hero.jpg');
+    put('banner-hero-wide.jpg');
+
+    const report = analyzeDemoImageFolder(directory, slots);
+
+    expect(report.bannerFiles.map((file) => file.name)).toEqual([
+      'banner-hero',
+      'banner-hero-wide',
+    ]);
+    expect(report.duplicates).toEqual([]);
+    expect(report.unexpected).toEqual([]);
+    expect(reportHasProblems(report)).toBe(false);
+  });
+
   it('ignores operating-system junk files', () => {
     putAllProductFiles();
     put('Thumbs.db');
