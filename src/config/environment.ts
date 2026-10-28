@@ -88,6 +88,32 @@ export function getPaymentCurrency(
   return currency;
 }
 
+export const DEFAULT_ORDER_PAYMENT_WINDOW_MINUTES = 30;
+const MIN_ORDER_PAYMENT_WINDOW_MINUTES = 5;
+const MAX_ORDER_PAYMENT_WINDOW_MINUTES = 1440;
+
+// Optional: how long an unpaid PENDING order may hold its reserved stock.
+export function getOrderPaymentWindowMinutes(reader: ConfigReader): number {
+  const configured = reader('ORDER_PAYMENT_WINDOW_MINUTES');
+  if (configured === undefined || configured === null) {
+    return DEFAULT_ORDER_PAYMENT_WINDOW_MINUTES;
+  }
+  const raw = String(configured as string | number).trim();
+  if (raw === '') return DEFAULT_ORDER_PAYMENT_WINDOW_MINUTES;
+
+  const minutes = Number(raw);
+  if (
+    !/^\d+$/.test(raw) ||
+    minutes < MIN_ORDER_PAYMENT_WINDOW_MINUTES ||
+    minutes > MAX_ORDER_PAYMENT_WINDOW_MINUTES
+  ) {
+    throw new Error(
+      `ORDER_PAYMENT_WINDOW_MINUTES must be an integer between ${MIN_ORDER_PAYMENT_WINDOW_MINUTES} and ${MAX_ORDER_PAYMENT_WINDOW_MINUTES}`,
+    );
+  }
+  return minutes;
+}
+
 export function validateRuntimeEnvironment(
   environment: Record<string, unknown>,
 ): RuntimeEnvironment {
@@ -103,6 +129,7 @@ export function validateRuntimeEnvironment(
   }
   getRequiredConfig(readConfig, 'JWT_SECRET');
   getJwtExpiration(readConfig);
+  getOrderPaymentWindowMinutes(readConfig);
 
   return {
     nodeEnvironment,

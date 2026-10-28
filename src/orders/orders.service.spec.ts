@@ -266,6 +266,29 @@ describe('OrdersService lifecycle', () => {
     expect(processing.status).toBe(PaymentStatus.CANCELLED);
   });
 
+  it('adds paymentExpiresAt (createdAt + 30 minutes) to PENDING Order views only', async () => {
+    const createdAt = new Date('2026-10-28T10:00:00.000Z');
+    orderRepo.findOne.mockResolvedValue(order({ createdAt }));
+    await expect(service.findOneForUser(7, 3)).resolves.toEqual(
+      expect.objectContaining({
+        paymentExpiresAt: new Date('2026-10-28T10:30:00.000Z'),
+      }),
+    );
+
+    for (const status of [
+      OrderStatus.CONFIRMED,
+      OrderStatus.PROCESSING,
+      OrderStatus.SHIPPED,
+      OrderStatus.DELIVERED,
+      OrderStatus.CANCELLED,
+    ]) {
+      orderRepo.findOne.mockResolvedValue(order({ createdAt, status }));
+      await expect(service.findOneForAdmin(3)).resolves.toEqual(
+        expect.objectContaining({ paymentExpiresAt: null }),
+      );
+    }
+  });
+
   function repository(entity: unknown) {
     if (entity === Address) return addressRepo;
     if (entity === ProductVariant) return variantRepo;
