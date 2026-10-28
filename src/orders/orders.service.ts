@@ -45,6 +45,14 @@ const allowedTransitions: Record<OrderStatus, readonly OrderStatus[]> = {
   [OrderStatus.CANCELLED]: [],
 };
 
+// Statuses an admin may only reach for an Order that has a succeeded payment.
+// CONFIRMED is not listed: only a successful payment confirms an Order.
+const paidOnlyTargets: readonly OrderStatus[] = [
+  OrderStatus.PROCESSING,
+  OrderStatus.SHIPPED,
+  OrderStatus.DELIVERED,
+];
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -242,7 +250,19 @@ export class OrdersService {
         lock: { mode: 'pessimistic_write' },
       });
       if (!order) throw new NotFoundException('Order not found');
+      if (target === OrderStatus.CONFIRMED)
+        throw new ConflictException(
+          'An Order is confirmed only by a successful payment',
+        );
       this.assertTransition(order.status, target);
+      if (
+        paidOnlyTargets.includes(target) &&
+        !(await manager.getRepository(Payment).existsBy({
+          orderId: id,
+          status: PaymentStatus.SUCCEEDED,
+        }))
+      )
+        throw new ConflictException('Order has no successful payment');
       order.status = target;
       return repository.save(order);
     });

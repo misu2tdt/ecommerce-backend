@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiOperation,
   ApiTags,
@@ -41,7 +42,11 @@ export class AdminOrdersController {
   @ApiOperation({
     summary: 'Transition an Order status',
     description:
-      'ADMIN only. Only configured lifecycle transitions are accepted.',
+      'ADMIN only. Only configured lifecycle transitions are accepted. An Order is confirmed only by a successful payment, so CONFIRMED is rejected here, and PROCESSING, SHIPPED and DELIVERED require a succeeded payment.',
+  })
+  @ApiConflictResponse({
+    description:
+      'CONFIRMED requested by an admin, or the Order has no succeeded payment.',
   })
   updateStatus(
     @Param('id', ParseIntPipe) id: number,

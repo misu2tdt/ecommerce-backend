@@ -15,6 +15,7 @@ import { TelegramService } from '../../src/telegram/telegram.service';
 import { UserRole } from '../../src/users/entities/user-role.enum';
 import { User } from '../../src/users/entities/user.entity';
 import { createCategory, createVariant } from './catalog-fixtures';
+import { markOrderPaid } from './payment-fixtures';
 import { cleanTestDatabase, initializeTestDatabase } from './test-database';
 
 describe('Addresses and Order lifecycle PostgreSQL integration', () => {
@@ -144,7 +145,8 @@ describe('Addresses and Order lifecycle PostgreSQL integration', () => {
     await expect(
       orders.updateStatus(order.id, OrderStatus.SHIPPED),
     ).rejects.toBeInstanceOf(BadRequestException);
-    await orders.updateStatus(order.id, OrderStatus.CONFIRMED);
+    // Only a successful payment confirms an Order, never an admin.
+    await markOrderPaid(dataSource, order.id);
     await orders.updateStatus(order.id, OrderStatus.PROCESSING);
     await orders.updateStatus(order.id, OrderStatus.SHIPPED);
     expect(await stockOf(variant.id)).toBe(3);

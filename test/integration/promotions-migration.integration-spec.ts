@@ -2,7 +2,11 @@ import { DataSource } from 'typeorm';
 import { OrderStatus } from '../../src/orders/entities/order-status.enum';
 import { ProductStatus } from '../../src/products/entities/product-status.enum';
 import { UserRole } from '../../src/users/entities/user-role.enum';
-import { cleanTestDatabase, initializeTestDatabase } from './test-database';
+import {
+  cleanTestDatabase,
+  initializeTestDatabase,
+  undoMigrationsThrough,
+} from './test-database';
 
 describe('Promotions Migration Scenarios (Fresh & Populated Backfill)', () => {
   let dataSource: DataSource;
@@ -128,8 +132,10 @@ describe('Promotions Migration Scenarios (Fresh & Populated Backfill)', () => {
   it('Scenario B: Populated pre-6E schema upgrade backfills subtotalPrice=totalPrice and discountPrice=0', async () => {
     // 1. Undo the Phase 6E migration to represent the exact pre-6E schema.
     // Newer migrations sit on top of it, so undo them first (newest first).
-    await dataSource.undoLastMigration(); // OneActivePaymentPerOrder
-    await dataSource.undoLastMigration(); // AddPromotionsAndCompareAtPrice
+    await undoMigrationsThrough(
+      dataSource,
+      'AddPromotionsAndCompareAtPrice1787245200000',
+    );
 
     // 2. Verify before migration that compareAtPrice does not exist
     const preVariantCols = await dataSource.query(`

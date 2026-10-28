@@ -12,12 +12,20 @@ import {
   PaymentEventProcessingStatus,
   PaymentEventType,
 } from './payment-event-type.enum';
+import { User } from '../../users/entities/user.entity';
 import { Payment } from './payment.entity';
 
 @Entity('payment_events')
 @Index('UQ_payment_events_provider_event', ['provider', 'providerEventId'], {
   unique: true,
 })
+@Index('IDX_payment_events_unresolved_reconciliation', ['createdAt', 'id'], {
+  where: `"processingStatus" = 'requires_reconciliation' AND "resolvedAt" IS NULL`,
+})
+@Check(
+  'CHK_payment_events_resolution',
+  `"resolvedAt" IS NOT NULL OR ("resolvedByUserId" IS NULL AND "resolutionNote" IS NULL)`,
+)
 @Check('CHK_payment_events_type', `"eventType" IN ('succeeded', 'failed')`)
 @Check(
   'CHK_payment_events_processing_status',
@@ -66,4 +74,21 @@ export class PaymentEvent {
 
   @Column({ type: 'timestamp', nullable: true })
   processedAt!: Date | null;
+
+  // Set when an admin records that a requires_reconciliation event was handled.
+  @Column({ type: 'timestamp', nullable: true })
+  resolvedAt!: Date | null;
+
+  @Column({ type: 'int', nullable: true })
+  resolvedByUserId!: number | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({
+    name: 'resolvedByUserId',
+    foreignKeyConstraintName: 'FK_payment_events_resolved_by',
+  })
+  resolvedBy?: User | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  resolutionNote!: string | null;
 }

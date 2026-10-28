@@ -1,7 +1,11 @@
 import { DataSource } from 'typeorm';
 import { OrderStatus } from '../../src/orders/entities/order-status.enum';
 import { UserRole } from '../../src/users/entities/user-role.enum';
-import { cleanTestDatabase, initializeTestDatabase } from './test-database';
+import {
+  cleanTestDatabase,
+  initializeTestDatabase,
+  undoMigrationsThrough,
+} from './test-database';
 
 const MIGRATION_NAME = 'OneActivePaymentPerOrder1787331600000';
 const INDEX_NAME = 'UQ_payments_one_active_per_order';
@@ -59,7 +63,7 @@ describe('One active Payment per Order migration', () => {
       drift.upQueries.filter((entry) => entry.query.includes(INDEX_NAME)),
     ).toEqual([]);
 
-    await dataSource.undoLastMigration();
+    await undoMigrationsThrough(dataSource, MIGRATION_NAME);
     expect(await indexDefinitions()).toHaveLength(0);
 
     await dataSource.runMigrations();
@@ -69,7 +73,7 @@ describe('One active Payment per Order migration', () => {
   it('refuses to run, listing order ids, when an Order already has two active Payments', async () => {
     expectMigrationExists();
     await dataSource.runMigrations();
-    await dataSource.undoLastMigration();
+    await undoMigrationsThrough(dataSource, MIGRATION_NAME);
 
     const userId = await insertUser();
     const violatingOrderId = await insertOrder(userId);

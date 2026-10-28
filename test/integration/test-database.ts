@@ -36,6 +36,24 @@ export async function initializeTestDatabase(): Promise<DataSource> {
   }
 }
 
+// Undoes applied migrations, newest first, up to and including the named one.
+// Migration specs use this instead of counting undoLastMigration() calls, so
+// adding a newer migration never silently changes what they undo.
+export async function undoMigrationsThrough(
+  dataSource: DataSource,
+  migrationName: string,
+): Promise<void> {
+  for (;;) {
+    const rows = await dataSource.query<{ name: string }[]>(
+      `SELECT "name" FROM "migrations" ORDER BY "id" DESC LIMIT 1`,
+    );
+    if (rows.length === 0)
+      throw new Error(`Migration ${migrationName} is not applied`);
+    await dataSource.undoLastMigration();
+    if (rows[0].name === migrationName) return;
+  }
+}
+
 export async function cleanTestDatabase(dataSource: DataSource): Promise<void> {
   assertSafeTestDatabase(dataSource);
 

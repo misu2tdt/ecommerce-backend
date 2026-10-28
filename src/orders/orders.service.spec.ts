@@ -32,7 +32,7 @@ describe('OrdersService lifecycle', () => {
     find: jest.fn(),
     save: jest.fn(),
   };
-  const paymentRepo = { find: jest.fn(), save: jest.fn() };
+  const paymentRepo = { find: jest.fn(), save: jest.fn(), existsBy: jest.fn() };
   const manager = {
     getRepository: jest.fn((entity) => repository(entity)),
   };
@@ -59,6 +59,7 @@ describe('OrdersService lifecycle', () => {
     orderRepo.find.mockResolvedValue([]);
     orderRepo.findOneBy.mockResolvedValue(order());
     paymentRepo.find.mockResolvedValue([]);
+    paymentRepo.existsBy.mockResolvedValue(false);
     paymentRepo.save.mockImplementation(async (value) => value);
     telegram.sendMessage.mockResolvedValue(undefined);
     const promotionsService = {
@@ -180,18 +181,69 @@ describe('OrdersService lifecycle', () => {
     );
   });
 
-  it('allows only the next forward transition without touching stock', async () => {
-    const selected = order({ status: OrderStatus.PENDING });
+  it('allows only the next forward transition of a paid Order without touching stock', async () => {
+    const selected = order({ status: OrderStatus.CONFIRMED });
     orderRepo.findOne.mockResolvedValue(selected);
+    paymentRepo.existsBy.mockResolvedValue(true);
     await expect(
-      service.updateStatus(selected.id, OrderStatus.CONFIRMED),
+      service.updateStatus(selected.id, OrderStatus.PROCESSING),
     ).resolves.toEqual(
-      expect.objectContaining({ status: OrderStatus.CONFIRMED }),
+      expect.objectContaining({ status: OrderStatus.PROCESSING }),
     );
     expect(variantRepo.save).not.toHaveBeenCalled();
     await expect(
-      service.updateStatus(selected.id, OrderStatus.SHIPPED),
+      service.updateStatus(selected.id, OrderStatus.DELIVERED),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('never lets an admin confirm an Order: only a successful payment does', async () => {
+    const selected = order({ status: OrderStatus.PENDING });
+    orderRepo.findOne.mockResolvedValue(selected);
+    paymentRepo.existsBy.mockResolvedValue(true);
+
+    const failure = await service
+      .updateStatus(selected.id, OrderStatus.CONFIRMED)
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ConflictException);
+    expect((failure as ConflictException).message).toBe(
+      'An Order is confirmed only by a successful payment',
+    );
+    expect(selected.status).toBe(OrderStatus.PENDING);
+    expect(orderRepo.save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [OrderStatus.CONFIRMED, OrderStatus.PROCESSING],
+    [OrderStatus.PROCESSING, OrderStatus.SHIPPED],
+    [OrderStatus.SHIPPED, OrderStatus.DELIVERED],
+  ])(
+    'rejects %s -> %s without a succeeded payment',
+    async (current, target) => {
+      const selected = order({ status: current });
+      orderRepo.findOne.mockResolvedValue(selected);
+      paymentRepo.existsBy.mockResolvedValue(false);
+
+      const failure = await service
+        .updateStatus(selected.id, target)
+        .catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(ConflictException);
+      expect((failure as ConflictException).message).toBe(
+        'Order has no successful payment',
+      );
+      expect(selected.status).toBe(current);
+      expect(orderRepo.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('still rejects an invalid transition with 400 before checking payments', async () => {
+    orderRepo.findOne.mockResolvedValue(order({ status: OrderStatus.PENDING }));
+
+    await expect(
+      service.updateStatus(3, OrderStatus.SHIPPED),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(paymentRepo.existsBy).not.toHaveBeenCalled();
   });
 
   it('cancels transactionally, aggregates quantities and locks Variants ascending', async () => {

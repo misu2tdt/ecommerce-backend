@@ -573,6 +573,9 @@ function eventFixture(overrides: Partial<PaymentEvent> = {}): PaymentEvent {
     processingMessage: null,
     createdAt: new Date(),
     processedAt: null,
+    resolvedAt: null,
+    resolvedByUserId: null,
+    resolutionNote: null,
     ...overrides,
   };
 }

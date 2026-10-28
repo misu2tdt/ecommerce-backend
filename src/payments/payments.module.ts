@@ -23,6 +23,8 @@ import { FetchMomoHttpClient, MomoHttpClient } from './momo/momo-http.client';
 import { MomoIpnService } from './momo/momo-ipn.service';
 import { MomoPaymentProvider } from './momo/momo-payment.provider';
 import { MomoWebhookController } from './momo/momo-webhook.controller';
+import { AdminPaymentReconciliationController } from './reconciliation/admin-payment-reconciliation.controller';
+import { PaymentReconciliationService } from './reconciliation/payment-reconciliation.service';
 
 @Module({
   imports: [
@@ -33,9 +35,11 @@ import { MomoWebhookController } from './momo/momo-webhook.controller';
     PaymentsController,
     MomoPaymentReturnController,
     MomoWebhookController,
+    AdminPaymentReconciliationController,
   ],
   providers: [
     PaymentsService,
+    PaymentReconciliationService,
     FakePaymentProvider,
     {
       provide: MOMO_CONFIG,

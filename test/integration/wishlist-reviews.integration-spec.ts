@@ -29,6 +29,7 @@ import {
   createCategory,
   createVariant,
 } from './catalog-fixtures';
+import { markOrderPaid } from './payment-fixtures';
 import { cleanTestDatabase, initializeTestDatabase } from './test-database';
 
 describe('Wishlist and verified Product reviews PostgreSQL integration', () => {
@@ -223,7 +224,7 @@ describe('Wishlist and verified Product reviews PostgreSQL integration', () => {
 
   async function checkoutAndDeliver(user: User, variant: ProductVariant) {
     const order = await checkout(user, variant);
-    await orders.updateStatus(order.id, OrderStatus.CONFIRMED);
+    await markOrderPaid(dataSource, order.id);
     await orders.updateStatus(order.id, OrderStatus.PROCESSING);
     await orders.updateStatus(order.id, OrderStatus.SHIPPED);
     await orders.updateStatus(order.id, OrderStatus.DELIVERED);
