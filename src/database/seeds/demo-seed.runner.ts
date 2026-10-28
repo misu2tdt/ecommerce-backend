@@ -22,6 +22,7 @@ async function run(): Promise<void> {
     console.log(`Brands: ${result.brands}`);
     console.log(`Products: ${result.products}`);
     console.log(`Variants: ${result.variants}`);
+    console.log(`Product images: ${result.images}`);
     console.log(`Demo users: ${result.users}`);
     console.log(`Orders: ${result.orders}`);
     console.log(`Reviews: ${result.reviews}`);

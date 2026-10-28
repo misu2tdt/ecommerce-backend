@@ -10,6 +10,7 @@ import { OrderItem } from '../../orders/entities/order-item.entity';
 import { OrderStatus } from '../../orders/entities/order-status.enum';
 import { Order } from '../../orders/entities/order.entity';
 import { snapshotShippingAddress } from '../../orders/shipping-address';
+import { ProductImage } from '../../products/entities/product-image.entity';
 import { ProductStatus } from '../../products/entities/product-status.enum';
 import { ProductVariant } from '../../products/entities/product-variant.entity';
 import { Product } from '../../products/entities/product.entity';
@@ -19,6 +20,13 @@ import { User } from '../../users/entities/user.entity';
 import { WishlistItem } from '../../wishlist/entities/wishlist-item.entity';
 import { CouponType } from '../../promotions/entities/coupon-type.enum';
 import { Coupon } from '../../promotions/entities/coupon.entity';
+import {
+  DEMO_IMAGES_FILE,
+  demoImageIdentity,
+  loadDemoImageManifest,
+  type DemoImageManifest,
+  type DemoImageSlot,
+} from './demo-image-manifest';
 import { assertSafeDemoSeedDatabase, DemoSeedTarget } from './demo-seed-safety';
 
 export const DEMO_CUSTOMER_EMAIL = 'demo.customer@example.com';
@@ -1006,12 +1014,36 @@ const variantDefinitions = [
   },
 ] as const;
 
+// One image slot per colour of each product, in the order the seed lists the
+// colours. The image tooling and the seed share this, so the file names the
+// uploader expects always match what the seed attaches.
+export function getDemoImageSlots(): DemoImageSlot[] {
+  return productDefinitions.flatMap((product) => {
+    const colors: string[] = [];
+    for (const variant of variantDefinitions) {
+      if (
+        variant.product === product.name &&
+        !colors.includes(variant.attributes.color)
+      ) {
+        colors.push(variant.attributes.color);
+      }
+    }
+    return colors.map((colorName) => ({
+      productName: product.name,
+      productSlug: createSlug(product.name),
+      colorName,
+      colorSlug: createSlug(colorName),
+    }));
+  });
+}
+
 export interface DemoSeedSummary {
   users: number;
   categories: number;
   brands: number;
   products: number;
   variants: number;
+  images: number;
   coupons: number;
   addresses: number;
   cartItems: number;
@@ -1030,6 +1062,12 @@ export async function seedDemoData(
       confirmation?: string;
       database?: string;
     };
+    // 'none': no images. 'file': read demo-images.json. A manifest object is
+    // used as given. Left out, the test target gets no images (so browser and
+    // CI runs stay deterministic) and the others read the file.
+    images?: 'none' | 'file' | DemoImageManifest;
+    // Overrides where 'file' reads from (tests and tooling only).
+    imagesFile?: string;
   },
 ): Promise<DemoSeedSummary> {
   assertSafeDemoSeedDatabase(
@@ -1041,6 +1079,7 @@ export async function seedDemoData(
   if (!dataSource.isInitialized) {
     throw new Error('Demo seed DataSource must be initialized');
   }
+  const imageManifest = resolveImageManifest(options);
 
   return dataSource.transaction(async (manager) => {
     const passwordHash = await bcrypt.hash(DEMO_PASSWORD, BCRYPT_ROUNDS);
@@ -1106,6 +1145,10 @@ export async function seedDemoData(
       );
       variants.set(definition.sku, variant);
     }
+
+    const imageCount = imageManifest
+      ? await syncProductImages(manager, products, imageManifest)
+      : 0;
 
     const address = await upsertAddress(manager, customer.id);
     const cart = await upsertCart(manager, customer.id);
@@ -1203,6 +1246,7 @@ export async function seedDemoData(
       brands: brandDefinitions.length,
       products: productDefinitions.length,
       variants: variantDefinitions.length,
+      images: imageCount,
       coupons: couponsCount,
       addresses: 1,
       cartItems: 2,
@@ -1309,6 +1353,105 @@ async function upsertVariant(
   return manager
     .getRepository(ProductVariant)
     .findOneByOrFail({ sku: definition.sku });
+}
+
+function resolveImageManifest(options: {
+  target: DemoSeedTarget;
+  images?: 'none' | 'file' | DemoImageManifest;
+  imagesFile?: string;
+}): DemoImageManifest | null {
+  const mode = options.images ?? (options.target === 'test' ? 'none' : 'file');
+  if (mode === 'none') return null;
+  if (mode !== 'file') return mode;
+
+  const file = options.imagesFile ?? DEMO_IMAGES_FILE;
+  const manifest = loadDemoImageManifest(file);
+  if (!manifest) {
+    console.warn(
+      'Demo images: demo-images.json not found, seeding without images. Run "npm run images:upload" first.',
+    );
+  }
+  return manifest;
+}
+
+// Attaches one image per colour, in the seed's colour order. Never deletes: an
+// image an admin uploaded stays, and so does an admin's choice of primary.
+// Returns how many demo images the products have afterwards.
+async function syncProductImages(
+  manager: EntityManager,
+  products: ReadonlyMap<string, Product>,
+  manifest: DemoImageManifest,
+): Promise<number> {
+  const repository = manager.getRepository(ProductImage);
+  const entries = new Map(
+    manifest.products.map((entry) => [
+      `${entry.productSlug}__${entry.colorSlug}`,
+      entry,
+    ]),
+  );
+  const slots = getDemoImageSlots();
+  let total = 0;
+
+  for (const [productName, product] of products) {
+    const desired = slots
+      .filter((slot) => slot.productName === productName)
+      .flatMap((slot) => {
+        const entry = entries.get(`${slot.productSlug}__${slot.colorSlug}`);
+        return entry
+          ? [{ url: entry.url, altText: `${productName} in ${slot.colorName}` }]
+          : [];
+      });
+    if (desired.length === 0) continue;
+
+    const existing = await repository.find({
+      where: { productId: product.id },
+      order: { id: 'ASC' },
+    });
+    // The same picture keeps its row even when a re-upload changed the url.
+    const claimed = new Set<number>();
+    const matches = desired.map((image) => {
+      const row = existing.find(
+        (candidate) =>
+          !claimed.has(candidate.id) &&
+          demoImageIdentity(candidate.url) === demoImageIdentity(image.url),
+      );
+      if (row) claimed.add(row.id);
+      return row;
+    });
+    const adminPrimary = existing.some(
+      (row) => row.isPrimary && !claimed.has(row.id),
+    );
+    const primaryIndex = adminPrimary ? -1 : 0;
+
+    // The unique "one primary per product" index forbids two at once, so
+    // release the old primary before another row takes the flag.
+    for (const [index, row] of matches.entries()) {
+      if (row?.isPrimary && index !== primaryIndex) {
+        await repository.update({ id: row.id }, { isPrimary: false });
+      }
+    }
+    for (const [index, image] of desired.entries()) {
+      const fields = {
+        url: image.url,
+        altText: image.altText,
+        position: index,
+        isPrimary: index === primaryIndex,
+      };
+      const row = matches[index];
+      if (!row) {
+        await repository.insert({ ...fields, productId: product.id });
+      } else if (
+        row.url !== fields.url ||
+        row.altText !== fields.altText ||
+        row.position !== fields.position ||
+        row.isPrimary !== fields.isPrimary
+      ) {
+        await repository.update({ id: row.id }, fields);
+      }
+    }
+    total += desired.length;
+  }
+  return total;
 }
 
 async function upsertDemoCoupons(manager: EntityManager): Promise<number> {

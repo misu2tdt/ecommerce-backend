@@ -208,6 +208,7 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
         confirmation: PRODUCTION_DEMO_CONFIRMATION,
         database: 'ecommerce_test',
       },
+      images: 'none' as const,
     };
 
     const first = await seedDemoData(dataSource, options);
@@ -248,6 +249,7 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
         confirmation: PRODUCTION_DEMO_CONFIRMATION,
         database: 'ecommerce_test',
       },
+      images: 'none',
     });
 
     const admin = await repository
@@ -283,6 +285,7 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
           confirmation: PRODUCTION_DEMO_CONFIRMATION,
           database: 'ecommerce_test',
         },
+        images: 'none',
       }),
     ).rejects.toThrow('refuses to modify an existing privileged account');
 
@@ -508,6 +511,7 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
         confirmation: PRODUCTION_DEMO_CONFIRMATION,
         database: 'ecommerce_test',
       },
+      images: 'none' as const,
     };
 
     const firstRunSummary = await seedDemoData(dataSource, prodOptions);

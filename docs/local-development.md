@@ -49,6 +49,29 @@ provider integrations. Their committed values are local placeholders only;
 `dev:setup` never calls external providers. Replace them only when intentionally
 testing those integrations, and never use the example secrets in production.
 
+## Demo product images
+
+The demo products get pictures from a folder of generated images kept outside
+the repo. Order of work (details in [demo-data.md](./demo-data.md)):
+
+1. Generate the images and name them `{product-slug}__{color-slug}.jpg`.
+2. Check them, then upload them with your own Cloudinary account:
+
+   ```powershell
+   npm.cmd run images:upload -- --dir "C:\path\to\images" --dry-run
+   $env:CLOUDINARY_CLOUD_NAME = '<your cloud name>'
+   $env:CLOUDINARY_API_KEY = '<your api key>'
+   $env:CLOUDINARY_API_SECRET = '<your api secret>'
+   npm.cmd run images:upload -- --dir "C:\path\to\images"
+   ```
+
+   Use `npm.cmd` in Windows PowerShell: plain `npm` drops the `--dir` flag.
+
+3. Commit the generated `src/database/seeds/demo-images.json`.
+4. Seed local: `npm run seed:demo`.
+5. Seed production last, after the Neon migration (see
+   [free-deployment.md](./free-deployment.md)).
+
 ## Integration tests
 
 Integration tests are restricted to `NODE_ENV=test` and `DB_NAME=ecommerce_test`.

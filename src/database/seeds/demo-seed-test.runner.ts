@@ -7,9 +7,12 @@ async function run(): Promise<void> {
   await dataSource.initialize();
   try {
     assertSafeDemoSeedDatabase(dataSource, 'test');
+    // The browser smoke tests and CI rely on a seed without images. Only
+    // DEMO_SEED_TEST_IMAGES=true reads demo-images.json into the test database.
     await seedDemoData(dataSource, {
       target: 'test',
       nodeEnvironment: process.env.NODE_ENV,
+      images: process.env.DEMO_SEED_TEST_IMAGES === 'true' ? 'file' : 'none',
     });
     console.log('Isolated browser-test demo seed completed.');
   } finally {

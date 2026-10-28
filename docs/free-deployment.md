@@ -92,6 +92,14 @@ Set `PRODUCTION_DEMO_SEED_CONFIRM=SEED_PORTFOLIO_DEMO` and set
 upserts inside a transaction, does not truncate tables, and is safe to rerun
 deliberately. Never add this command to Render build or startup.
 
+The seed also attaches the demo product images from the committed
+`src/database/seeds/demo-images.json` (read from the checkout, so run it from
+a checkout that contains the file). Do things in this order: generate the images,
+run `npm run images:upload` locally, commit `demo-images.json`, seed local, and
+seed production last, after the Neon migration. Rerunning adds only missing
+images and keeps any image an admin uploaded. Without the JSON file the seed
+prints one warning and adds no images. See `docs/local-development.md`.
+
 The production portfolio seed creates the demo customer required by its saved
 address, order, and review, but deliberately skips the development demo ADMIN.
 The deterministic credentials in `docs/demo-data.md` are local-only and must

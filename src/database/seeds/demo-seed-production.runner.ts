@@ -22,7 +22,7 @@ async function run(): Promise<void> {
       productionApproval: approval,
     });
     console.log(
-      `Production portfolio demo seed completed categories=${result.categories} brands=${result.brands} products=${result.products} variants=${result.variants} users=${result.users} orders=${result.orders} reviews=${result.reviews}`,
+      `Production portfolio demo seed completed categories=${result.categories} brands=${result.brands} products=${result.products} variants=${result.variants} images=${result.images} users=${result.users} orders=${result.orders} reviews=${result.reviews}`,
     );
     console.log(`Demo customer: ${DEMO_CUSTOMER_EMAIL}`);
     console.log('No ADMIN account is created or updated by this command.');
