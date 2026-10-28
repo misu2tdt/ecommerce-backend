@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
 import { OrderStatus } from '../orders/entities/order-status.enum';
 import { Order } from '../orders/entities/order.entity';
 import {
@@ -357,6 +357,153 @@ describe('PaymentsService state rules', () => {
       currency: 'VND',
       idempotencyKey: 'new-discounted-idemp-key',
     });
+  });
+});
+
+describe('PaymentsService one active Payment per Order', () => {
+  const ACTIVE_PAYMENT_MESSAGE = 'Order already has an active payment';
+  const ACTIVE_INDEX = 'UQ_payments_one_active_per_order';
+
+  function uniqueViolation(constraint: string) {
+    return new QueryFailedError(
+      'INSERT INTO "payments"',
+      [],
+      Object.assign(new Error('duplicate key value'), {
+        code: '23505',
+        constraint,
+      }),
+    );
+  }
+
+  function establishAttempt(config: {
+    existingByKey?: Payment | null;
+    racedByKey?: Payment | null;
+    succeeded?: boolean;
+    active?: boolean;
+    execute?: jest.Mock;
+  }) {
+    const execute =
+      config.execute ??
+      jest.fn().mockResolvedValue({ identifiers: [{ id: 1 }] });
+    const paymentRepo = {
+      findOne: jest
+        .fn()
+        .mockResolvedValueOnce(config.existingByKey ?? null)
+        .mockResolvedValue(config.racedByKey ?? null),
+      findOneOrFail: jest.fn().mockResolvedValue(config.racedByKey),
+      findOneByOrFail: jest
+        .fn()
+        .mockResolvedValue(paymentFixture({ status: PaymentStatus.PENDING })),
+      existsBy: jest.fn(async (where: { status: unknown }) =>
+        where.status === PaymentStatus.SUCCEEDED
+          ? Boolean(config.succeeded)
+          : Boolean(config.active),
+      ),
+    };
+    const orderRepo = {
+      findOne: jest.fn().mockResolvedValue(orderFixture()),
+    };
+    const manager = {
+      getRepository: jest.fn((entity) =>
+        entity === Payment ? paymentRepo : orderRepo,
+      ),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        into: jest.fn().mockReturnThis(),
+        values: jest.fn().mockReturnThis(),
+        orIgnore: jest.fn().mockReturnThis(),
+        returning: jest.fn().mockReturnThis(),
+        execute,
+      }),
+    } as unknown as EntityManager;
+    const dataSource = {
+      transaction: jest.fn(async (cb: (m: EntityManager) => unknown) =>
+        cb(manager),
+      ),
+    } as unknown as DataSource;
+    const service = new PaymentsService(
+      dataSource,
+      new FakePaymentProvider(),
+      'VND',
+    );
+    const run = (idempotencyKey: string) =>
+      privateMethod<(u: number, o: number, k: string) => Promise<Payment>>(
+        service,
+        'establishAttempt',
+      )(7, 3, idempotencyKey);
+    return { run, execute };
+  }
+
+  it('rejects a different idempotency key while the Order has an active Payment', async () => {
+    const { run, execute } = establishAttempt({ active: true });
+
+    const failure = await run('different-key-001').catch((e: unknown) => e);
+
+    expect(failure).toBeInstanceOf(ConflictException);
+    expect((failure as ConflictException).message).toBe(ACTIVE_PAYMENT_MESSAGE);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('keeps the "Order is already paid" message for a succeeded Payment', async () => {
+    const { run } = establishAttempt({ succeeded: true, active: true });
+
+    await expect(run('different-key-001')).rejects.toThrow(
+      'Order is already paid',
+    );
+  });
+
+  it('still returns the existing Payment for the same idempotency key', async () => {
+    const existing = paymentFixture();
+    const { run, execute } = establishAttempt({
+      existingByKey: existing,
+      active: true,
+    });
+
+    await expect(run('payment-key-001')).resolves.toBe(existing);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('maps a unique violation on the active-Payment index to 409', async () => {
+    const { run } = establishAttempt({
+      execute: jest.fn().mockRejectedValue(uniqueViolation(ACTIVE_INDEX)),
+    });
+
+    const failure = await run('different-key-001').catch((e: unknown) => e);
+
+    expect(failure).toBeInstanceOf(ConflictException);
+    expect((failure as ConflictException).message).toBe(ACTIVE_PAYMENT_MESSAGE);
+  });
+
+  it('does not rewrite unrelated unique violations', async () => {
+    const violation = uniqueViolation('UQ_payments_provider_payment');
+    const { run } = establishAttempt({
+      execute: jest.fn().mockRejectedValue(violation),
+    });
+
+    await expect(run('different-key-001')).rejects.toBe(violation);
+  });
+
+  it('answers 409 when the insert is ignored and no Payment has the key', async () => {
+    // INSERT ... ON CONFLICT DO NOTHING also swallows a conflict on the
+    // active-Payment index, so the insert yields no row.
+    const { run } = establishAttempt({
+      execute: jest.fn().mockResolvedValue({ identifiers: [] }),
+      racedByKey: null,
+    });
+
+    await expect(run('different-key-001')).rejects.toThrow(
+      ACTIVE_PAYMENT_MESSAGE,
+    );
+  });
+
+  it('still resolves a same-key race when the insert is ignored', async () => {
+    const raced = paymentFixture();
+    const { run } = establishAttempt({
+      execute: jest.fn().mockResolvedValue({ identifiers: [] }),
+      racedByKey: raced,
+    });
+
+    await expect(run('payment-key-001')).resolves.toBe(raced);
   });
 });
 
