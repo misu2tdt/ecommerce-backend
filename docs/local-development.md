@@ -61,5 +61,11 @@ npm run test:database-safety
 npm run test:integration
 ```
 
-The password environment variable is intentionally not committed. The test
-suite runs migrations and clears data only inside `ecommerce_test`.
+`ECOMMERCE_TEST_DB_PASSWORD` is the only variable you need to export. It is
+intentionally not committed. The suite supplies fake placeholder values for the
+runtime settings the application validates on startup (`JWT_SECRET`,
+`JWT_EXPIRES_IN`, `CLOUDINARY_*`, `MOMO_*`, and so on) from
+`test/support/test-runtime-env.ts`. A variable you have already set, such as in
+CI, is never overwritten.
+
+The test suite runs migrations and clears data only inside `ecommerce_test`.
