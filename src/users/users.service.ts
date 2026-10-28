@@ -15,34 +15,34 @@ export class UsersService {
   async register(createUserDto: CreateUserDto) {
     const { email, password } = createUserDto;
 
-    // 1. Kiểm tra xem email đã có ai dùng chưa
+    // 1. Check whether the email is already taken
     const existingUser = await this.usersRepository.findOne({
       where: { email },
     });
     if (existingUser) {
-      throw new ConflictException('Email này đã được đăng ký!');
+      throw new ConflictException('This email is already registered.');
     }
 
-    // 2. Băm nát mật khẩu bằng bcrypt (muối 10 vòng)
+    // 2. Hash the password with bcrypt (10 salt rounds)
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // 3. Tạo user mới với mật khẩu đã băm
+    // 3. Create the new user with the hashed password
     const newUser = this.usersRepository.create({
       email: email,
       password: hashedPassword,
-      // role mặc định là 'user' như bản vẽ Entity đã định
+      // the role falls back to the entity default ('user')
     });
 
-    // 4. Lưu vào Database
+    // 4. Save to the database
     await this.usersRepository.save(newUser);
 
-    // 5. Trả về thông tin nhưng GIẤU mật khẩu đi (không in ra màn hình)
+    // 5. Return the user details without the password
     return {
       id: newUser.id,
       email: newUser.email,
       role: newUser.role,
-      message: 'Đăng ký tài khoản thành công!',
+      message: 'Registration successful',
     };
   }
 }

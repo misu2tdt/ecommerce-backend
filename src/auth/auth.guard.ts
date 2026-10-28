@@ -20,7 +20,7 @@ export class AuthGuard implements CanActivate {
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
-      throw new UnauthorizedException('Bạn chưa xuất trình Token!');
+      throw new UnauthorizedException('Authentication token is required.');
     }
 
     try {
@@ -37,7 +37,7 @@ export class AuthGuard implements CanActivate {
         role: payload.role,
       };
     } catch {
-      throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn!');
+      throw new UnauthorizedException('Token is invalid or has expired.');
     }
 
     return true;

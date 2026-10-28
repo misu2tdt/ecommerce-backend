@@ -5,7 +5,7 @@ import { UsersController } from './users.controller';
 import { User } from './entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])], // Cấp quyền xài bảng User
+  imports: [TypeOrmModule.forFeature([User])], // Grants access to the User table
   controllers: [UsersController],
   providers: [UsersService],
 })

@@ -12,18 +12,18 @@ import { WishlistItem } from '../../wishlist/entities/wishlist-item.entity';
 import { UserRole } from './user-role.enum';
 import { Cart } from '../../carts/entities/cart.entity';
 
-@Entity('users') // Tên bảng trong Database sẽ là "users"
+@Entity('users') // The database table is named "users"
 export class User {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ type: 'varchar', unique: true }) // Email không được phép trùng nhau
+  @Column({ type: 'varchar', unique: true }) // Emails must be unique
   email!: string;
 
-  @Column({ type: 'varchar', select: false }) // Mật khẩu (sẽ được mã hóa)
+  @Column({ type: 'varchar', select: false }) // Password (stored hashed)
   password!: string;
 
-  @Column({ type: 'varchar', default: UserRole.USER }) // Mặc định ai đăng ký cũng là khách thường
+  @Column({ type: 'varchar', default: UserRole.USER }) // New accounts are regular users
   role!: UserRole;
 
   @OneToOne(() => Cart, (cart) => cart.user)
