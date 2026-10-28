@@ -126,8 +126,10 @@ describe('Promotions Migration Scenarios (Fresh & Populated Backfill)', () => {
   });
 
   it('Scenario B: Populated pre-6E schema upgrade backfills subtotalPrice=totalPrice and discountPrice=0', async () => {
-    // 1. Undo the Phase 6E migration to represent the exact pre-6E schema
-    await dataSource.undoLastMigration();
+    // 1. Undo the Phase 6E migration to represent the exact pre-6E schema.
+    // Newer migrations sit on top of it, so undo them first (newest first).
+    await dataSource.undoLastMigration(); // OneActivePaymentPerOrder
+    await dataSource.undoLastMigration(); // AddPromotionsAndCompareAtPrice
 
     // 2. Verify before migration that compareAtPrice does not exist
     const preVariantCols = await dataSource.query(`

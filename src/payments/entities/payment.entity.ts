@@ -15,8 +15,16 @@ import { VND_MAX_AMOUNT, vndMoneyTransformer } from '../../money/vnd-money';
 import { PaymentEvent } from './payment-event.entity';
 import { PaymentStatus } from './payment-status.enum';
 
+// An Order may have at most one active Payment. FAILED and CANCELLED payments
+// do not count, so a customer can retry after a failure.
+export const ACTIVE_PAYMENT_INDEX = 'UQ_payments_one_active_per_order';
+
 @Entity('payments')
 @Index('UQ_payments_idempotency_key', ['idempotencyKey'], { unique: true })
+@Index(ACTIVE_PAYMENT_INDEX, ['orderId'], {
+  unique: true,
+  where: `"status" IN ('pending', 'processing', 'succeeded')`,
+})
 @Index('UQ_payments_provider_payment', ['provider', 'providerPaymentId'], {
   unique: true,
   where: '"providerPaymentId" IS NOT NULL',

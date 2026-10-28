@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In, QueryFailedError } from 'typeorm';
 import { OrderStatus } from '../orders/entities/order-status.enum';
 import { Order } from '../orders/entities/order.entity';
 import {
@@ -15,13 +15,26 @@ import {
 } from './entities/payment-event-type.enum';
 import { PaymentEvent } from './entities/payment-event.entity';
 import { PaymentStatus } from './entities/payment-status.enum';
-import { Payment } from './entities/payment.entity';
+import { ACTIVE_PAYMENT_INDEX, Payment } from './entities/payment.entity';
 import { ProviderPaymentEvent } from './payment-event';
 import { PaymentProvider } from './payment-provider';
 import { PaymentProviderAmbiguousError } from './provider-errors';
 import { PAYMENT_CURRENCY } from './payments.constants';
 import { MOMO_PROVIDER } from './momo/momo.constants';
 import { VND_MIN_PAYABLE_AMOUNT } from '../money/vnd-money';
+
+const ACTIVE_PAYMENT_MESSAGE = 'Order already has an active payment';
+
+function isActivePaymentViolation(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) return false;
+  const driverError = error.driverError as
+    | { code?: string; constraint?: string }
+    | undefined;
+  return (
+    driverError?.code === '23505' &&
+    driverError.constraint === ACTIVE_PAYMENT_INDEX
+  );
+}
 
 @Injectable()
 export class PaymentsService {
@@ -209,35 +222,57 @@ export class PaymentsService {
       )
         throw new ConflictException('Order is already paid');
 
-      const result = await manager
-        .createQueryBuilder()
-        .insert()
-        .into(Payment)
-        .values({
+      // A different idempotency key must not open a second checkout while one
+      // is still in flight (two provider links could mean a double charge).
+      if (
+        await manager.getRepository(Payment).existsBy({
           orderId,
-          provider: this.paymentProvider.provider,
-          providerPaymentId: null,
-          idempotencyKey,
-          amount: order.totalPrice,
-          currency: this.currency,
-          status: PaymentStatus.PENDING,
-          failureCode: null,
-          failureMessage: null,
-          succeededAt: null,
+          status: In([PaymentStatus.PENDING, PaymentStatus.PROCESSING]),
         })
-        .orIgnore()
-        .returning(['id'])
-        .execute();
-      const insertedId = result.identifiers[0]?.id as number | undefined;
+      )
+        throw new ConflictException(ACTIVE_PAYMENT_MESSAGE);
+
+      let insertedId: number | undefined;
+      try {
+        const result = await manager
+          .createQueryBuilder()
+          .insert()
+          .into(Payment)
+          .values({
+            orderId,
+            provider: this.paymentProvider.provider,
+            providerPaymentId: null,
+            idempotencyKey,
+            amount: order.totalPrice,
+            currency: this.currency,
+            status: PaymentStatus.PENDING,
+            failureCode: null,
+            failureMessage: null,
+            succeededAt: null,
+          })
+          .orIgnore()
+          .returning(['id'])
+          .execute();
+        insertedId = result.identifiers[0]?.id as number | undefined;
+      } catch (error) {
+        // Safety net: the database refused a second active Payment.
+        if (isActivePaymentViolation(error))
+          throw new ConflictException(ACTIVE_PAYMENT_MESSAGE);
+        throw error;
+      }
       if (insertedId !== undefined)
         return manager
           .getRepository(Payment)
           .findOneByOrFail({ id: insertedId });
 
-      const raced = await manager.getRepository(Payment).findOneOrFail({
+      // The insert was ignored (ON CONFLICT DO NOTHING). Either another request
+      // just created this idempotency key, so reuse it, or the conflict was the
+      // active-Payment index, which the same clause also swallows.
+      const raced = await manager.getRepository(Payment).findOne({
         where: { idempotencyKey },
         relations: { order: true },
       });
+      if (!raced) throw new ConflictException(ACTIVE_PAYMENT_MESSAGE);
       return this.assertReusable(raced, userId, orderId);
     });
   }
