@@ -1,12 +1,15 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { Address } from '../addresses/entities/address.entity';
+import { DEFAULT_ORDER_PAYMENT_WINDOW_MINUTES } from '../config/environment';
 import { addVndAmounts, multiplyVndAmount } from '../money/vnd-money';
 import { PaymentStatus } from '../payments/entities/payment-status.enum';
 import { Payment } from '../payments/entities/payment.entity';
@@ -19,6 +22,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderStatus } from './entities/order-status.enum';
 import { Order } from './entities/order.entity';
+import { cancelLockedOrder } from './order-cancellation';
+import { ORDER_PAYMENT_WINDOW_MINUTES } from './orders.constants';
 import { snapshotShippingAddress } from './shipping-address';
 
 interface NormalizedOrderItem {
@@ -48,6 +53,9 @@ export class OrdersService {
     private readonly dataSource: DataSource,
     private readonly telegramService: TelegramService,
     private readonly promotionsService: PromotionsService,
+    @Optional()
+    @Inject(ORDER_PAYMENT_WINDOW_MINUTES)
+    private readonly paymentWindowMinutes: number = DEFAULT_ORDER_PAYMENT_WINDOW_MINUTES,
   ) {}
 
   async checkout(userId: number, createOrderDto: CreateOrderDto) {
@@ -267,45 +275,7 @@ export class OrdersService {
           'Paid Order cannot be cancelled before refund support',
         );
 
-      const cancellablePayments = payments.filter((payment) =>
-        [PaymentStatus.PENDING, PaymentStatus.PROCESSING].includes(
-          payment.status,
-        ),
-      );
-      for (const payment of cancellablePayments)
-        payment.status = PaymentStatus.CANCELLED;
-      if (cancellablePayments.length > 0)
-        await paymentRepo.save(cancellablePayments);
-
-      const items = await manager.getRepository(OrderItem).find({
-        where: { orderId: order.id },
-        order: { variantId: 'ASC', id: 'ASC' },
-      });
-      const quantities = new Map<number, number>();
-      for (const item of items)
-        quantities.set(
-          item.variantId,
-          (quantities.get(item.variantId) ?? 0) + item.quantity,
-        );
-
-      const variantRepo = manager.getRepository(ProductVariant);
-      for (const [variantId, quantity] of [...quantities.entries()].sort(
-        ([first], [second]) => first - second,
-      )) {
-        const variant = await variantRepo.findOne({
-          where: { id: variantId },
-          lock: { mode: 'pessimistic_write' },
-        });
-        if (!variant)
-          throw new BadRequestException(
-            `Variant ID ${variantId} does not exist`,
-          );
-        variant.stock += quantity;
-        await variantRepo.save(variant);
-      }
-
-      order.status = OrderStatus.CANCELLED;
-      return orderRepo.save(order);
+      return cancelLockedOrder(manager, order, payments);
     });
   }
 
@@ -324,6 +294,15 @@ export class OrdersService {
     });
   }
 
+  // Until this moment an unpaid PENDING order keeps its reserved stock. The
+  // database fills createdAt, so a partially hydrated entity has none.
+  private paymentExpiresAt(order: Order): Date | null {
+    if (order.status !== OrderStatus.PENDING || !order.createdAt) return null;
+    return new Date(
+      order.createdAt.getTime() + this.paymentWindowMinutes * 60_000,
+    );
+  }
+
   private toOrderView(order: Order) {
     return {
       id: order.id,
@@ -338,6 +317,7 @@ export class OrdersService {
       shippingAddress: order.shippingAddress,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
+      paymentExpiresAt: this.paymentExpiresAt(order),
       items: order.items.map((item) => ({
         id: item.id,
         quantity: item.quantity,
