@@ -42,6 +42,8 @@ Set these Render environment variable names:
   `JWT_EXPIRES_IN`, `NODE_ENV`, `PAYMENT_CURRENCY`, `SWAGGER_ENABLED`
 - MoMo bootstrap: `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`,
   `MOMO_IDENTITY_SECRET`, `MOMO_ENDPOINT`, `MOMO_REDIRECT_URL`, `MOMO_IPN_URL`
+- Optional payment mode: `PAYMENT_PROVIDER` (`momo`, the default, or `demo`;
+  see [Demo payments](#demo-payments-for-the-public-portfolio-demo))
 - Optional Cloudinary: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
   `CLOUDINARY_API_SECRET`
 - Optional Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
@@ -162,6 +164,27 @@ Real MoMo activation requires legitimate merchant credentials. Set
 must remain public HTTPS because verified IPN state, not browser redirect query
 parameters, is authoritative.
 
+### Demo payments for the public portfolio demo
+
+Visitors of the public demo cannot pay with MoMo, so the backend can run a
+stand-in provider. **No real money is involved.** To turn it on:
+
+1. In Render, set `PAYMENT_PROVIDER=demo`.
+2. Redeploy the backend manually. The setting is read at startup.
+3. Check the Render log for `DEMO PAYMENTS ENABLED, no real money`.
+
+No migration is needed: the existing `payments.provider` column holds `demo`
+and nothing in the schema had to change. Keep the `MOMO_*` values as they are;
+the IPN route stays in place but is not used by demo payments.
+
+To go back to MoMo, remove the variable (or set `momo`) and redeploy. A demo
+payment can only be finished while `PAYMENT_PROVIDER=demo`; the endpoint
+answers 404 otherwise. How it behaves, and the request and response shapes, are
+in [payments.md](./payments.md).
+
+Rerun the seed (`npm run seed:demo:production`, see section D) to give the
+seeded delivered order its succeeded demo payment; it adds nothing twice.
+
 ## I. Smoke checks
 
 1. Request the Render `/health` endpoint and expect a 200 JSON response.
@@ -172,7 +195,8 @@ parameters, is authoritative.
 5. Confirm cookies contain no browser-readable JWT and browser storage contains
    no credentials.
 6. If providers are disabled, confirm payment/image operations fail honestly
-   without breaking catalog reads.
+   without breaking catalog reads. With `PAYMENT_PROVIDER=demo`, instead place
+   an order, finish its demo payment, and confirm the order becomes confirmed.
 
 Free Render services can cold-start after inactivity, so an initial request may
 take longer. Use platform logs and `/health`; no external observability service

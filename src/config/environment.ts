@@ -7,7 +7,11 @@ export interface RuntimeEnvironment {
   port: number;
   frontendOrigin?: string;
   swaggerEnabled: boolean;
+  paymentProvider: PaymentProviderMode;
 }
+
+export const PAYMENT_PROVIDER_MODES = ['momo', 'demo'] as const;
+export type PaymentProviderMode = (typeof PAYMENT_PROVIDER_MODES)[number];
 
 export function getRequiredConfig(reader: ConfigReader, key: string): string {
   const value = reader(key);
@@ -88,6 +92,24 @@ export function getPaymentCurrency(
   return currency;
 }
 
+// PAYMENT_PROVIDER picks the payment provider: momo (the default) or demo, a
+// stand-in that lets a visitor finish an order without paying real money. The
+// rejected value is not echoed back, in case a secret was pasted by mistake.
+export function getPaymentProviderMode(
+  reader: ConfigReader,
+): PaymentProviderMode {
+  const configured = reader('PAYMENT_PROVIDER');
+  if (configured === undefined || configured === null) return 'momo';
+  const value = typeof configured === 'string' ? configured.trim() : null;
+  if (value === '') return 'momo';
+  if (
+    value !== null &&
+    (PAYMENT_PROVIDER_MODES as readonly string[]).includes(value)
+  )
+    return value as PaymentProviderMode;
+  throw new Error('PAYMENT_PROVIDER must be "momo" or "demo"');
+}
+
 export const DEFAULT_ORDER_PAYMENT_WINDOW_MINUTES = 30;
 const MIN_ORDER_PAYMENT_WINDOW_MINUTES = 5;
 const MAX_ORDER_PAYMENT_WINDOW_MINUTES = 1440;
@@ -130,6 +152,7 @@ export function validateRuntimeEnvironment(
   getRequiredConfig(readConfig, 'JWT_SECRET');
   getJwtExpiration(readConfig);
   getOrderPaymentWindowMinutes(readConfig);
+  const paymentProvider = getPaymentProviderMode(readConfig);
 
   return {
     nodeEnvironment,
@@ -143,6 +166,7 @@ export function validateRuntimeEnvironment(
       nodeEnvironment !== 'production',
       'SWAGGER_ENABLED',
     ),
+    paymentProvider,
   };
 }
 

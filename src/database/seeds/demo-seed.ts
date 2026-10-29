@@ -10,6 +10,10 @@ import { OrderItem } from '../../orders/entities/order-item.entity';
 import { OrderStatus } from '../../orders/entities/order-status.enum';
 import { Order } from '../../orders/entities/order.entity';
 import { snapshotShippingAddress } from '../../orders/shipping-address';
+import { DemoPaymentProvider } from '../../payments/demo/demo-payment.provider';
+import { PaymentStatus } from '../../payments/entities/payment-status.enum';
+import { Payment } from '../../payments/entities/payment.entity';
+import { DEFAULT_PAYMENT_CURRENCY } from '../../payments/payments.constants';
 import { ProductImage } from '../../products/entities/product-image.entity';
 import { ProductStatus } from '../../products/entities/product-status.enum';
 import { ProductVariant } from '../../products/entities/product-variant.entity';
@@ -1237,6 +1241,9 @@ export async function seedDemoData(
       throw new Error('Demo delivered Order invariant was not established');
     }
 
+    // The delivered order was paid: one succeeded demo payment for its total.
+    await upsertDemoPayment(manager, deliveredOrder);
+
     // 8. Upsert Phase 6E promotional coupons
     const couponsCount = await upsertDemoCoupons(manager);
 
@@ -1253,7 +1260,7 @@ export async function seedDemoData(
       wishlistItems: 1,
       orders: 1,
       reviews: 1,
-      payments: 0,
+      payments: 1,
     };
   });
 }
@@ -1582,6 +1589,40 @@ async function upsertDeliveredOrder(
   );
 
   return order;
+}
+
+// One succeeded demo payment for the seeded delivered order, matching its
+// total, so the order reads as paid. Keyed by a fixed idempotency key: a rerun
+// updates the same row, and the production seed gets it too.
+async function upsertDemoPayment(
+  manager: EntityManager,
+  order: Order,
+): Promise<Payment> {
+  const repository = manager.getRepository(Payment);
+  const idempotencyKey = `demo-seed-order-${order.id}`;
+  await repository.upsert(
+    {
+      orderId: order.id,
+      provider: new DemoPaymentProvider().provider,
+      idempotencyKey,
+      amount: order.totalPrice,
+      currency: DEFAULT_PAYMENT_CURRENCY,
+      status: PaymentStatus.SUCCEEDED,
+      failureCode: null,
+      failureMessage: null,
+      succeededAt: order.createdAt,
+    },
+    ['idempotencyKey'],
+  );
+  const payment = await repository.findOneByOrFail({ idempotencyKey });
+  const providerPaymentId = new DemoPaymentProvider().getProviderPaymentId(
+    payment.id,
+  );
+  if (payment.providerPaymentId !== providerPaymentId) {
+    payment.providerPaymentId = providerPaymentId;
+    await repository.save(payment);
+  }
+  return payment;
 }
 
 function requireMapped<T>(map: Map<string, T>, key: string): T {

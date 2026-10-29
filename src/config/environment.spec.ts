@@ -1,4 +1,8 @@
-import { getPaymentCurrency, validateRuntimeEnvironment } from './environment';
+import {
+  getPaymentCurrency,
+  getPaymentProviderMode,
+  validateRuntimeEnvironment,
+} from './environment';
 
 describe('payment currency configuration', () => {
   it('defaults to and normalizes VND', () => {
@@ -80,6 +84,21 @@ describe('runtime environment validation', () => {
     },
   );
 
+  it('reports the payment provider mode and defaults it to momo', () => {
+    expect(validateRuntimeEnvironment(core)).toMatchObject({
+      paymentProvider: 'momo',
+    });
+    expect(
+      validateRuntimeEnvironment({ ...core, PAYMENT_PROVIDER: 'demo' }),
+    ).toMatchObject({ paymentProvider: 'demo' });
+  });
+
+  it('fails startup on an unknown PAYMENT_PROVIDER', () => {
+    expect(() =>
+      validateRuntimeEnvironment({ ...core, PAYMENT_PROVIDER: 'stripe' }),
+    ).toThrow('PAYMENT_PROVIDER');
+  });
+
   it('rejects wildcard/path CORS origins and invalid booleans', () => {
     expect(() =>
       validateRuntimeEnvironment({ ...core, FRONTEND_ORIGIN: '*' }),
@@ -93,5 +112,34 @@ describe('runtime environment validation', () => {
     expect(() =>
       validateRuntimeEnvironment({ ...core, SWAGGER_ENABLED: 'yes' }),
     ).toThrow('true or false');
+  });
+});
+
+describe('payment provider mode configuration', () => {
+  it('defaults to momo when PAYMENT_PROVIDER is absent or blank', () => {
+    expect(getPaymentProviderMode(() => undefined)).toBe('momo');
+    expect(getPaymentProviderMode(() => '')).toBe('momo');
+    expect(getPaymentProviderMode(() => '   ')).toBe('momo');
+  });
+
+  it('accepts momo and demo, ignoring surrounding spaces', () => {
+    expect(getPaymentProviderMode(() => 'momo')).toBe('momo');
+    expect(getPaymentProviderMode(() => 'demo')).toBe('demo');
+    expect(getPaymentProviderMode(() => ' demo ')).toBe('demo');
+  });
+
+  it.each(['stripe', 'DEMO', 'true', 'fake', 'momo,demo'])(
+    'rejects the invalid value %p with a clear message',
+    (value) => {
+      expect(() => getPaymentProviderMode(() => value)).toThrow(
+        'PAYMENT_PROVIDER must be "momo" or "demo"',
+      );
+    },
+  );
+
+  it('does not echo the rejected value back (it could be a pasted secret)', () => {
+    expect(() => getPaymentProviderMode(() => 'sk_live_secret_value')).toThrow(
+      /^((?!sk_live_secret_value).)*$/s,
+    );
   });
 });

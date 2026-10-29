@@ -23,6 +23,7 @@ import { OrderItem } from '../../src/orders/entities/order-item.entity';
 import { OrderStatus } from '../../src/orders/entities/order-status.enum';
 import { Order } from '../../src/orders/entities/order.entity';
 import { snapshotShippingAddress } from '../../src/orders/shipping-address';
+import { PaymentStatus } from '../../src/payments/entities/payment-status.enum';
 import { Payment } from '../../src/payments/entities/payment.entity';
 import { ProductStatus } from '../../src/products/entities/product-status.enum';
 import { ProductVariant } from '../../src/products/entities/product-variant.entity';
@@ -195,11 +196,55 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
       deliveredOrders: 1,
       orderItems: 1,
       reviews: 1,
-      payments: 0,
+      payments: 1,
       verifiedReviewPurchase: true,
     });
   });
 
+  it('gives the delivered order one succeeded demo payment and a rerun adds none', async () => {
+    const options = {
+      target: 'production' as const,
+      nodeEnvironment: 'production',
+      productionApproval: {
+        confirmation: PRODUCTION_DEMO_CONFIRMATION,
+        database: 'ecommerce_test',
+      },
+      images: 'none' as const,
+    };
+
+    const first = await seedDemoData(dataSource, options);
+    const customer = await dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email: DEMO_CUSTOMER_EMAIL });
+    const order = await dataSource
+      .getRepository(Order)
+      .findOneByOrFail({ userId: customer.id, status: OrderStatus.DELIVERED });
+    const before = await dataSource
+      .getRepository(Payment)
+      .findBy({ orderId: order.id });
+
+    expect(first.payments).toBe(1);
+    expect(before).toHaveLength(1);
+    expect(before[0]).toMatchObject({
+      provider: 'demo',
+      providerPaymentId: `demo_payment_${before[0].id}`,
+      status: PaymentStatus.SUCCEEDED,
+      amount: order.totalPrice,
+      currency: 'VND',
+    });
+    expect(before[0].succeededAt).not.toBeNull();
+
+    const second = await seedDemoData(dataSource, options);
+    const after = await dataSource
+      .getRepository(Payment)
+      .findBy({ orderId: order.id });
+
+    expect(second.payments).toBe(1);
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(before[0].id);
+    expect(after[0].providerPaymentId).toBe(before[0].providerPaymentId);
+    expect(await dataSource.getRepository(Payment).count()).toBe(1);
+  });
   it('seeds production portfolio data twice without creating a known ADMIN', async () => {
     const options = {
       target: 'production' as const,

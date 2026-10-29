@@ -46,6 +46,8 @@ and non-test environments before destructive cleanup.
 
 Cloudinary, Telegram, and MoMo values in `.env.example` are placeholders. Real
 provider credentials are optional for local setup and must never be committed.
+`PAYMENT_PROVIDER=demo` switches on demo payments (no real money) for the public
+portfolio demo; see [docs/payments.md](./docs/payments.md).
 
 ## Production readiness
 

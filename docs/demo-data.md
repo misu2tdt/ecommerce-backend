@@ -32,9 +32,9 @@ The Phase 6A fashion seed manages the following Phase 6A-owned entity counts:
 - **4 Fictional Brands**: `AeroThread`, `Kanso Basics`, `Veloce Active`, `Monolith Studio`
 - **26 Active Products** and **72 Active ProductVariants** with realistic integer-VND prices (99,000–789,000 VND)
 - **4 deliberately out-of-stock Variants** across different product families
-- 48 ProductImages (one per colour, 22 products with two colours and 4 with one) when `src/database/seeds/demo-images.json` exists; without that file the products have no images. The seed itself never calls Cloudinary. No Payments or MoMo calls
+- 48 ProductImages (one per colour, 22 products with two colours and 4 with one) when `src/database/seeds/demo-images.json` exists; without that file the products have no images. The seed itself never calls Cloudinary. No MoMo calls
 - one saved Address (`Phase 6A Demo Address`), a Cart with 2 items, and one Wishlist item
-- one DELIVERED historical Order (`Phase 6A Fashion Demo Suite`) with an immutable shipping snapshot
+- one DELIVERED historical Order (`Phase 6A Fashion Demo Suite`) with an immutable shipping snapshot, and one succeeded `demo` Payment for its total (so it reads as paid; a rerun updates the same row, and the production seed adds it too)
 - one visible verified-purchase Product review on `Classic Crewneck Cotton Tee`
 
 ## Demo product images

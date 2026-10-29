@@ -122,9 +122,16 @@ export class PaymentsService {
 
   processEvent(input: ProviderPaymentEvent) {
     return this.dataSource.transaction(async (manager) => {
-      const paymentReference = await manager.getRepository(Payment).findOneBy({
-        provider: input.provider,
-        providerPaymentId: input.providerPaymentId,
+      // Lock the payment before the event row is inserted. The insert takes a
+      // shared lock on the payment through its foreign key, so two events for
+      // one payment that each held that share and then asked for the exclusive
+      // lock waited on each other (a deadlock).
+      const paymentReference = await manager.getRepository(Payment).findOne({
+        where: {
+          provider: input.provider,
+          providerPaymentId: input.providerPaymentId,
+        },
+        lock: { mode: 'pessimistic_write' },
       });
       if (!paymentReference) throw new NotFoundException('Payment not found');
 
@@ -401,7 +408,9 @@ export class PaymentsService {
       return;
     }
     if (payment.status === PaymentStatus.CANCELLED) return;
-    payment.status = PaymentStatus.FAILED;
+    payment.status = input.cancelled
+      ? PaymentStatus.CANCELLED
+      : PaymentStatus.FAILED;
     payment.failureCode = this.safeProviderText(input.failureCode, 100);
     payment.failureMessage = this.safeProviderText(input.failureMessage, 500);
     await manager.getRepository(Payment).save(payment);
@@ -437,7 +446,7 @@ export class PaymentsService {
     );
   }
 
-  private toPaymentView(
+  toPaymentView(
     payment: Payment,
     continuation?: {
       checkoutUrl?: string;

@@ -2,15 +2,24 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
-import { getPaymentCurrency } from '../config/environment';
+import {
+  getPaymentCurrency,
+  getPaymentProviderMode,
+  type PaymentProviderMode,
+} from '../config/environment';
 import { Order } from '../orders/entities/order.entity';
 import { PaymentEvent } from './entities/payment-event.entity';
 import { Payment } from './entities/payment.entity';
+import { DemoPaymentsController } from './demo/demo-payments.controller';
+import { DemoPaymentsEnabledGuard } from './demo/demo-payments-enabled.guard';
+import { DemoPaymentProvider } from './demo/demo-payment.provider';
+import { DemoPaymentsService } from './demo/demo-payments.service';
 import { FakePaymentProvider } from './fake-payment.provider';
 import { PaymentProvider } from './payment-provider';
 import {
   DEFAULT_PAYMENT_CURRENCY,
   PAYMENT_CURRENCY,
+  PAYMENT_PROVIDER_MODE,
 } from './payments.constants';
 import {
   MomoPaymentReturnController,
@@ -34,6 +43,7 @@ import { PaymentReconciliationService } from './reconciliation/payment-reconcili
   controllers: [
     PaymentsController,
     MomoPaymentReturnController,
+    DemoPaymentsController,
     MomoWebhookController,
     AdminPaymentReconciliationController,
   ],
@@ -51,16 +61,35 @@ import { PaymentReconciliationService } from './reconciliation/payment-reconcili
     },
     { provide: MOMO_HTTP_CLIENT, useClass: FetchMomoHttpClient },
     {
+      provide: PAYMENT_PROVIDER_MODE,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        getPaymentProviderMode((key) => configService.get(key)),
+    },
+    DemoPaymentsEnabledGuard,
+    DemoPaymentsService,
+    {
       provide: PaymentProvider,
-      inject: [MOMO_CONFIG, MOMO_HTTP_CLIENT, FakePaymentProvider],
+      inject: [
+        PAYMENT_PROVIDER_MODE,
+        MOMO_CONFIG,
+        MOMO_HTTP_CLIENT,
+        FakePaymentProvider,
+      ],
       useFactory: (
+        mode: PaymentProviderMode,
         config: MomoConfig,
         httpClient: MomoHttpClient,
         fakeProvider: FakePaymentProvider,
-      ) =>
-        process.env.NODE_ENV === 'test'
+      ) => {
+        if (mode === 'demo') {
+          DemoPaymentProvider.announce();
+          return new DemoPaymentProvider();
+        }
+        return process.env.NODE_ENV === 'test'
           ? fakeProvider
-          : new MomoPaymentProvider(config, httpClient),
+          : new MomoPaymentProvider(config, httpClient);
+      },
     },
     MomoIpnService,
     {

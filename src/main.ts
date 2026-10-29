@@ -20,7 +20,7 @@ async function bootstrap() {
   if (runtime.swaggerEnabled) configureSwagger(app);
   await app.listen(runtime.port, '0.0.0.0');
   Logger.log(
-    `API ready environment=${runtime.nodeEnvironment} port=${runtime.port} swagger=${runtime.swaggerEnabled ? 'enabled' : 'disabled'}`,
+    `API ready environment=${runtime.nodeEnvironment} port=${runtime.port} swagger=${runtime.swaggerEnabled ? 'enabled' : 'disabled'} payments=${runtime.paymentProvider}`,
     'Bootstrap',
   );
 }

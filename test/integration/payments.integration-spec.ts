@@ -222,6 +222,46 @@ describe('Payments PostgreSQL integration', () => {
     }
   });
 
+  it('processes concurrent events with different ids for one payment without a deadlock', async () => {
+    // A provider can report two different events for the same payment at the
+    // same moment. Each one must wait for the payment lock instead of holding
+    // a share of it from its own event insert, which used to deadlock.
+    for (let round = 0; round < 8; round += 1) {
+      const fixture = await checkout(`concurrent-events-${round}`);
+      const created = await createPayment(
+        fixture,
+        `concurrent-events-${round}`,
+      );
+
+      const settled = await Promise.allSettled([
+        payments.processEvent(
+          providerEvent(created, `concurrent-success-${round}`, 'succeeded'),
+        ),
+        payments.processEvent(
+          providerEvent(created, `concurrent-failed-${round}`, 'failed'),
+        ),
+      ]);
+
+      const rejected = settled.filter(
+        (outcome) => outcome.status === 'rejected',
+      );
+      expect({ round, rejected }).toEqual({ round, rejected: [] });
+      const finalPayment = await paymentOf(created.id);
+      const finalOrder = await orderOf(fixture.order.id);
+      if (finalPayment.status === PaymentStatus.SUCCEEDED)
+        expect(finalOrder.status).toBe(OrderStatus.CONFIRMED);
+      else {
+        expect(finalPayment.status).toBe(PaymentStatus.FAILED);
+        expect(finalOrder.status).toBe(OrderStatus.PENDING);
+      }
+      // Both events were recorded; the loser is flagged for an admin.
+      expect(
+        await dataSource.getRepository(PaymentEvent).countBy({
+          paymentId: created.id,
+        }),
+      ).toBe(2);
+    }
+  });
   async function checkout(suffix: string) {
     const user = await createUser(suffix);
     const address = await createAddress(dataSource, user, suffix);
