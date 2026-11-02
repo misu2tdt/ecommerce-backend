@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -9,7 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { BrandsModule } from './brands/brands.module';
 import { CategoriesModule } from './categories/categories.module';
 import { validateRuntimeEnvironment } from './config/environment';
-import { GLOBAL_THROTTLE } from './config/throttling';
+import { createThrottlerOptions } from './config/throttling';
 import { createDatabaseOptions } from './database/database-options';
 import { databaseEntities } from './database/entities';
 import { OrdersModule } from './orders/orders.module';
@@ -34,7 +35,13 @@ import { PromotionsModule } from './promotions/promotions.module';
         return environment;
       },
     }),
-    ThrottlerModule.forRoot({ throttlers: [GLOBAL_THROTTLE] }),
+    // Limits per signed-in user, login email or client IP: see config/throttling.
+    ThrottlerModule.forRootAsync({
+      imports: [AuthModule],
+      inject: [JwtService],
+      useFactory: (jwtService: JwtService) =>
+        createThrottlerOptions((token) => jwtService.verify(token)),
+    }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

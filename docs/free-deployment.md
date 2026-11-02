@@ -11,6 +11,11 @@ domain validation and connects to Neon. The JWT remains only in an HttpOnly
 cookie owned by the Vercel hostname; Next.js forwards it to Render as a Bearer
 token on server-to-server requests.
 
+Because every browser request reaches the API through that Vercel server, the API
+sees one shared client address. Rate limits therefore tell visitors apart by
+their token or login email rather than by IP; see
+[rate-limiting.md](./rate-limiting.md).
+
 ## A. Create Neon
 
 1. Create a Neon project, branch, role, and database in a region close to the

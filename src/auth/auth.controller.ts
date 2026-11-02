@@ -15,7 +15,12 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AUTH_THROTTLE } from '../config/throttling';
+import {
+  ipOnlyTracker,
+  LOGIN_IP_THROTTLE,
+  ME_THROTTLE,
+  ThrottleByEmail,
+} from '../config/throttling';
 import { UserRole } from '../users/entities/user-role.enum';
 import type { AuthenticatedUser } from './auth.types';
 import { AuthGuard } from './auth.guard';
@@ -28,7 +33,10 @@ import { LoginDto } from './dto/login.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Throttle({ default: AUTH_THROTTLE })
+  // Two limits: this IP ceiling (a signed-in token does not widen it) and, via
+  // @ThrottleByEmail(), a stricter one per email being tried.
+  @Throttle({ default: { ...LOGIN_IP_THROTTLE, getTracker: ipOnlyTracker } })
+  @ThrottleByEmail()
   @HttpCode(HttpStatus.OK)
   @Post('login')
   @ApiOperation({ summary: 'Log in with email and password' })
@@ -46,6 +54,8 @@ export class AuthController {
     return this.authService.login(loginDto.email, loginDto.password);
   }
 
+  // Called on every page by the storefront header; counted per user.
+  @Throttle({ default: ME_THROTTLE })
   @UseGuards(AuthGuard)
   @Get('me')
   @ApiBearerAuth('bearer')

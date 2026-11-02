@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-import { UserRole } from '../users/entities/user-role.enum';
-import { AuthenticatedUser, JwtPayload } from './auth.types';
+import { AuthenticatedUser, isJwtPayload } from './auth.types';
+import { extractBearerToken } from './bearer-token';
 
 type AuthenticatedRequest = Request & { user?: AuthenticatedUser };
 
@@ -17,7 +17,7 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const token = this.extractTokenFromHeader(request);
+    const token = extractBearerToken(request.headers);
 
     if (!token) {
       throw new UnauthorizedException('Authentication token is required.');
@@ -27,7 +27,7 @@ export class AuthGuard implements CanActivate {
       const payload =
         await this.jwtService.verifyAsync<Record<string, unknown>>(token);
 
-      if (!this.isValidPayload(payload)) {
+      if (!isJwtPayload(payload)) {
         throw new UnauthorizedException();
       }
 
@@ -41,23 +41,5 @@ export class AuthGuard implements CanActivate {
     }
 
     return true;
-  }
-
-  private isValidPayload(
-    payload: Record<string, unknown>,
-  ): payload is Record<string, unknown> & JwtPayload {
-    return (
-      typeof payload.sub === 'number' &&
-      Number.isInteger(payload.sub) &&
-      payload.sub > 0 &&
-      typeof payload.email === 'string' &&
-      payload.email.length > 0 &&
-      (payload.role === UserRole.USER || payload.role === UserRole.ADMIN)
-    );
-  }
-
-  private extractTokenFromHeader(request: Request): string | undefined {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'Bearer' ? token : undefined;
   }
 }

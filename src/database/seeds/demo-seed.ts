@@ -1544,6 +1544,76 @@ async function upsertCartItem(
     .upsert({ cartId, variantId, quantity }, ['cartId', 'variantId']);
 }
 
+// The seed's payment for its delivered order is keyed by this prefix plus the
+// order id. A visitor's order can carry the same address snapshot as the seeded
+// one, but only the seed holds a payment under this exact key.
+const DEMO_SEED_PAYMENT_KEY_PREFIX = 'demo-seed-order-';
+
+// Finds the order the seed itself created for this customer, never one a visitor
+// placed to the same (seeded) address:
+//  1. a delivered order paid under the seed's payment key; or
+//  2. an older seeded order from before that payment existed: delivered, the
+//     seeded address, the seeded item and no payment at all. A visitor's
+//     delivered order always has a payment (no fulfilment without payment), so
+//     it can never match. The oldest such order is taken.
+async function findSeededDeliveredOrder(
+  manager: EntityManager,
+  userId: number,
+  variant: ProductVariant,
+  marker: string,
+): Promise<Order | null> {
+  const repository = manager.getRepository(Order);
+
+  const paidBySeed = await repository
+    .createQueryBuilder('demo_order')
+    .innerJoin(
+      Payment,
+      'seed_payment',
+      `seed_payment."orderId" = demo_order.id`,
+    )
+    .where('demo_order.userId = :userId', { userId })
+    .andWhere('demo_order.status = :status', { status: OrderStatus.DELIVERED })
+    .andWhere(
+      `seed_payment."idempotencyKey" = '${DEMO_SEED_PAYMENT_KEY_PREFIX}' || demo_order.id`,
+    )
+    .orderBy('demo_order.id', 'ASC')
+    .getOne();
+  if (paidBySeed) {
+    return paidBySeed;
+  }
+
+  return repository
+    .createQueryBuilder('demo_order')
+    .where('demo_order.userId = :userId', { userId })
+    .andWhere('demo_order.status = :status', { status: OrderStatus.DELIVERED })
+    .andWhere(`demo_order."shippingAddress" ->> 'addressLine2' = :marker`, {
+      marker,
+    })
+    .andWhere(
+      (query) =>
+        `NOT EXISTS ${query
+          .subQuery()
+          .select('1')
+          .from(Payment, 'any_payment')
+          .where('any_payment.orderId = demo_order.id')
+          .getQuery()}`,
+    )
+    .andWhere(
+      (query) =>
+        `EXISTS ${query
+          .subQuery()
+          .select('1')
+          .from(OrderItem, 'seed_item')
+          .where('seed_item.orderId = demo_order.id')
+          .andWhere('seed_item.variantId = :variantId')
+          .andWhere('seed_item.quantity = 1')
+          .getQuery()}`,
+    )
+    .setParameter('variantId', variant.id)
+    .orderBy('demo_order.id', 'ASC')
+    .getOne();
+}
+
 async function upsertDeliveredOrder(
   manager: EntityManager,
   userId: number,
@@ -1552,13 +1622,7 @@ async function upsertDeliveredOrder(
   marker: string,
 ): Promise<Order> {
   const repository = manager.getRepository(Order);
-  let order = await repository
-    .createQueryBuilder('demo_order')
-    .where('demo_order.userId = :userId', { userId })
-    .andWhere(`demo_order."shippingAddress" ->> 'addressLine2' = :marker`, {
-      marker,
-    })
-    .getOne();
+  let order = await findSeededDeliveredOrder(manager, userId, variant, marker);
 
   if (order) {
     return order;
@@ -1599,7 +1663,15 @@ async function upsertDemoPayment(
   order: Order,
 ): Promise<Payment> {
   const repository = manager.getRepository(Payment);
-  const idempotencyKey = `demo-seed-order-${order.id}`;
+  const idempotencyKey = `${DEMO_SEED_PAYMENT_KEY_PREFIX}${order.id}`;
+  // The key comes from the API's Idempotency-Key too, so a visitor could have
+  // used it first. Never move someone else's payment onto the seeded order.
+  const holder = await repository.findOneBy({ idempotencyKey });
+  if (holder && holder.orderId !== order.id) {
+    throw new Error(
+      `Demo seed payment key ${idempotencyKey} belongs to another order (${holder.orderId})`,
+    );
+  }
   await repository.upsert(
     {
       orderId: order.id,

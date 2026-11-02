@@ -768,6 +768,122 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
       .getExists();
     expect(legacyVerifiedPurchase).toBe(true);
   });
+
+  describe('when visitors have ordered to the seeded address', () => {
+    // Visitors share the demo customer and ship to the seeded address, so their
+    // order snapshots look exactly like the seeded order's. The seed must only
+    // ever recognise its own order and never touch the others.
+    const productionOptions = {
+      target: 'production' as const,
+      nodeEnvironment: 'production',
+      productionApproval: {
+        confirmation: PRODUCTION_DEMO_CONFIRMATION,
+        database: 'ecommerce_test',
+      },
+      images: 'none' as const,
+    };
+
+    it('reruns without error, keeps one paid seeded order and leaves visitor orders untouched', async () => {
+      await seedDemoData(dataSource, productionOptions);
+      const seeded = await seededDeliveredOrder(dataSource);
+
+      const visitors = await addVisitorOrders(dataSource);
+      const visitorsBefore = await visitorState(dataSource, visitors);
+
+      const summary = await seedDemoData(dataSource, productionOptions);
+
+      expect(summary.payments).toBe(1);
+      const after = await seededDeliveredOrder(dataSource);
+      expect(after.id).toBe(seeded.id);
+      expect(await seedPayments(dataSource)).toEqual([
+        expect.objectContaining({
+          orderId: seeded.id,
+          provider: 'demo',
+          status: PaymentStatus.SUCCEEDED,
+        }),
+      ]);
+      expect(await visitorState(dataSource, visitors)).toEqual(visitorsBefore);
+      expect(await dataSource.getRepository(Order).count()).toBe(
+        1 + visitors.length,
+      );
+    });
+
+    it('does not mistake a visitor order for the seeded one when it sits ahead of it', async () => {
+      await seedDemoData(dataSource, productionOptions);
+      // The seeded order is gone (for example after a manual cleanup) and
+      // visitor orders of every status already exist for the same address.
+      await removeOrder(
+        dataSource,
+        (await seededDeliveredOrder(dataSource)).id,
+      );
+      const visitors = await addVisitorOrders(dataSource);
+      const visitorsBefore = await visitorState(dataSource, visitors);
+
+      await seedDemoData(dataSource, productionOptions);
+      const recreated = await seededDeliveredOrder(dataSource);
+      await seedDemoData(dataSource, productionOptions);
+
+      expect((await seededDeliveredOrder(dataSource)).id).toBe(recreated.id);
+      expect(visitors.map(({ id }) => id)).not.toContain(recreated.id);
+      expect(await seedPayments(dataSource)).toHaveLength(1);
+      expect(await visitorState(dataSource, visitors)).toEqual(visitorsBefore);
+    });
+
+    it('adopts a seeded order created before it had a payment, and no visitor order', async () => {
+      await seedDemoData(dataSource, productionOptions);
+      await removeOrder(
+        dataSource,
+        (await seededDeliveredOrder(dataSource)).id,
+      );
+      // Visitor orders come first (lower ids), including a delivered one that
+      // was paid for. Then the database as an older seed left it: the seeded
+      // delivered order with no payment at all.
+      const visitors = await addVisitorOrders(dataSource);
+      const older = await placeOrder(dataSource, OrderStatus.DELIVERED);
+      const visitorsBefore = await visitorState(dataSource, visitors);
+      const ordersBefore = await dataSource.getRepository(Order).count();
+
+      await seedDemoData(dataSource, productionOptions);
+
+      expect(await dataSource.getRepository(Order).count()).toBe(ordersBefore);
+      expect(await seedPayments(dataSource)).toEqual([
+        expect.objectContaining({
+          orderId: older.id,
+          provider: 'demo',
+          status: PaymentStatus.SUCCEEDED,
+        }),
+      ]);
+      expect((await seededDeliveredOrder(dataSource)).id).toBe(older.id);
+      expect(await visitorState(dataSource, visitors)).toEqual(visitorsBefore);
+    });
+
+    it('refuses to take over a payment that a visitor created under the seed key', async () => {
+      await seedDemoData(dataSource, productionOptions);
+      const seeded = await seededDeliveredOrder(dataSource);
+      await dataSource
+        .getRepository(Payment)
+        .delete({ idempotencyKey: `demo-seed-order-${seeded.id}` });
+      const visitors = await addVisitorOrders(dataSource);
+      const squatter = visitors.find(
+        (order) => order.status === OrderStatus.PENDING,
+      )!;
+      await dataSource.getRepository(Payment).save({
+        orderId: squatter.id,
+        provider: 'demo',
+        idempotencyKey: `demo-seed-order-${seeded.id}`,
+        amount: squatter.totalPrice,
+        currency: 'VND',
+        status: PaymentStatus.PENDING,
+      });
+      const visitorsBefore = await visitorState(dataSource, visitors);
+
+      await expect(seedDemoData(dataSource, productionOptions)).rejects.toThrow(
+        /belongs to another order/i,
+      );
+
+      expect(await visitorState(dataSource, visitors)).toEqual(visitorsBefore);
+    });
+  });
 });
 
 async function demoSnapshot(dataSource: DataSource) {
@@ -843,4 +959,121 @@ async function demoSnapshot(dataSource: DataSource) {
     }),
     verifiedReviewPurchase,
   };
+}
+
+async function demoCustomer(dataSource: DataSource): Promise<User> {
+  return dataSource
+    .getRepository(User)
+    .findOneByOrFail({ email: DEMO_CUSTOMER_EMAIL });
+}
+
+// The one delivered order the seed owns: delivered, and paid by the seed key.
+async function seededDeliveredOrder(dataSource: DataSource): Promise<Order> {
+  const customer = await demoCustomer(dataSource);
+  return dataSource
+    .getRepository(Order)
+    .createQueryBuilder('o')
+    .innerJoin(Payment, 'p', `p."orderId" = o.id`)
+    .where('o.userId = :userId', { userId: customer.id })
+    .andWhere('o.status = :status', { status: OrderStatus.DELIVERED })
+    .andWhere(`p."idempotencyKey" = 'demo-seed-order-' || o.id`)
+    .getOneOrFail();
+}
+
+function seedPayments(dataSource: DataSource): Promise<Payment[]> {
+  return dataSource
+    .getRepository(Payment)
+    .createQueryBuilder('p')
+    .where(`p."idempotencyKey" LIKE 'demo-seed-order-%'`)
+    .orderBy('p.id', 'ASC')
+    .getMany();
+}
+
+// Orders a visitor could have placed with the seeded address: every status, with
+// the payments each would have, plus a delivered one that was paid for.
+async function addVisitorOrders(dataSource: DataSource): Promise<Order[]> {
+  const plans: Array<[OrderStatus, PaymentStatus | null]> = [
+    [OrderStatus.PENDING, null],
+    [OrderStatus.PENDING, PaymentStatus.PENDING],
+    [OrderStatus.CONFIRMED, PaymentStatus.SUCCEEDED],
+    [OrderStatus.CANCELLED, PaymentStatus.CANCELLED],
+    [OrderStatus.DELIVERED, PaymentStatus.SUCCEEDED],
+  ];
+  const orders: Order[] = [];
+  for (const [status, paymentStatus] of plans) {
+    orders.push(await placeOrder(dataSource, status, paymentStatus));
+  }
+  return orders;
+}
+
+// An order of the demo customer to the seeded address with the seeded item,
+// as a visitor's checkout would leave it, optionally with one payment.
+async function placeOrder(
+  dataSource: DataSource,
+  status: OrderStatus,
+  paymentStatus: PaymentStatus | null = null,
+): Promise<Order> {
+  const customer = await demoCustomer(dataSource);
+  const address = await dataSource
+    .getRepository(Address)
+    .findOneByOrFail({ userId: customer.id, label: DEMO_ADDRESS_LABEL });
+  const variant = await dataSource
+    .getRepository(ProductVariant)
+    .findOneByOrFail({ sku: 'AT-CCT-BLK-M' });
+
+  const order = await dataSource.getRepository(Order).save({
+    userId: customer.id,
+    subtotalPrice: variant.price,
+    discountPrice: 0,
+    totalPrice: variant.price,
+    couponCode: null,
+    couponType: null,
+    couponValue: null,
+    status,
+    shippingAddress: snapshotShippingAddress(address),
+  });
+  await dataSource.getRepository(OrderItem).save({
+    orderId: order.id,
+    variantId: variant.id,
+    quantity: 1,
+    price: variant.price,
+  });
+  if (paymentStatus) {
+    await dataSource.getRepository(Payment).save({
+      orderId: order.id,
+      provider: 'demo',
+      idempotencyKey: `visitor-order-${order.id}`,
+      amount: variant.price,
+      currency: 'VND',
+      status: paymentStatus,
+      succeededAt:
+        paymentStatus === PaymentStatus.SUCCEEDED ? new Date() : null,
+    });
+  }
+  return order;
+}
+
+// Everything about the visitor orders that the seed must leave alone.
+async function visitorState(dataSource: DataSource, orders: Order[]) {
+  const orderIds = orders.map(({ id }) => id);
+  return {
+    orders: await dataSource.getRepository(Order).find({
+      where: { id: In(orderIds) },
+      order: { id: 'ASC' },
+    }),
+    items: await dataSource.getRepository(OrderItem).find({
+      where: { orderId: In(orderIds) },
+      order: { id: 'ASC' },
+    }),
+    payments: await dataSource.getRepository(Payment).find({
+      where: { orderId: In(orderIds) },
+      order: { id: 'ASC' },
+    }),
+  };
+}
+
+async function removeOrder(dataSource: DataSource, orderId: number) {
+  await dataSource.getRepository(Payment).delete({ orderId });
+  await dataSource.getRepository(OrderItem).delete({ orderId });
+  await dataSource.getRepository(Order).delete({ id: orderId });
 }

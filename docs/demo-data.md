@@ -87,3 +87,16 @@ On an already-seeded production database upgrading from the legacy electronics d
 - **Demo cart & wishlist**: legacy demo items pointing to retired electronics records are cleaned up for the demo customer, replaced by Phase 6A fashion demo items.
 
 Reruns are idempotent and do not duplicate known demo records.
+
+### Reruns on the public demo
+
+Visitors share the demo customer and ship their orders to the seeded address, so
+their order snapshots look exactly like the seeded order's. The seed therefore
+never recognises its order by address alone. It owns the one **delivered** order
+that is paid by its payment key `demo-seed-order-<order id>`. A database seeded
+before that payment existed is upgraded once, by taking the oldest delivered
+order with the seeded address, the seeded item and no payment at all (a visitor's
+delivered order always has a payment); after that the payment key identifies it.
+Visitor orders, items and payments are never read for update, and if a visitor's
+payment already holds the seed key the seed stops with an error instead of
+moving it.

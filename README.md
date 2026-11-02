@@ -44,6 +44,9 @@ database. Copy `.env.test.example` to `.env.test`, then provide
 local PostgreSQL container. Safety guards reject `postgres`, `ecommerce_dev`,
 and non-test environments before destructive cleanup.
 
+Requests are rate limited per signed-in user, login email or client IP; see
+[docs/rate-limiting.md](./docs/rate-limiting.md) for the keys and numbers.
+
 Cloudinary, Telegram, and MoMo values in `.env.example` are placeholders. Real
 provider credentials are optional for local setup and must never be committed.
 `PAYMENT_PROVIDER=demo` switches on demo payments (no real money) for the public
