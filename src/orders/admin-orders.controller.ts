@@ -5,19 +5,29 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import {
+  LIST_PAGE_SIZE,
+  ListPaginationQueryDto,
+  listWithPaging,
+  PAGINATION_HEADER_DOCS,
+} from '../pagination/pagination';
 import { UserRole } from '../users/entities/user-role.enum';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
@@ -33,9 +43,23 @@ export class AdminOrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
+  @ApiOkResponse({
+    description:
+      'All Orders, or one page when `page` or `limit` is sent (limit defaults to 20, at most 100). Totals are in the X-Total-Count, X-Total-Pages, X-Page and X-Limit headers.',
+    headers: PAGINATION_HEADER_DOCS,
+  })
   @ApiOperation({ summary: 'List all Orders', description: 'ADMIN only.' })
-  findAll() {
-    return this.ordersService.findAllForAdmin();
+  findAll(
+    @Query() query: ListPaginationQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return listWithPaging(
+      response,
+      query,
+      LIST_PAGE_SIZE,
+      () => this.ordersService.findAllForAdmin(),
+      (paging) => this.ordersService.findPageForAdmin(paging),
+    );
   }
 
   @Patch(':id/status')

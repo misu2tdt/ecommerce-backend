@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import type { Paging } from '../pagination/pagination';
 import { isUniqueViolation } from '../catalog/database-errors';
 import { OrderStatus } from '../orders/entities/order-status.enum';
 import { OrderItem } from '../orders/entities/order-item.entity';
@@ -95,7 +96,26 @@ export class ProductReviewsService {
       relations: { product: true },
       order: { createdAt: 'DESC', id: 'DESC' },
     });
-    return reviews.map((review) => ({
+    return reviews.map((review) => this.toAdminReview(review));
+  }
+
+  async findPageForAdmin(paging: Paging) {
+    const [reviews, total] = await this.dataSource
+      .getRepository(ProductReview)
+      .findAndCount({
+        relations: { product: true },
+        order: { createdAt: 'DESC', id: 'DESC' },
+        skip: paging.offset,
+        take: paging.limit,
+      });
+    return {
+      items: reviews.map((review) => this.toAdminReview(review)),
+      total,
+    };
+  }
+
+  private toAdminReview(review: ProductReview) {
+    return {
       id: review.id,
       userId: review.userId,
       rating: review.rating,
@@ -109,7 +129,7 @@ export class ProductReviewsService {
         name: review.product.name,
         slug: review.product.slug,
       },
-    }));
+    };
   }
 
   async setVisibility(reviewId: number, isVisible: boolean) {

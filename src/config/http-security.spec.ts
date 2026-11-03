@@ -131,6 +131,31 @@ describe('configureHttpSecurity', () => {
       }
     });
 
+    it('exposes the paging headers so the storefront can read the totals', async () => {
+      const app = await createApp('production');
+      try {
+        const res = await request(app.getHttpServer())
+          .get('/probe')
+          .set('Origin', frontendOrigin)
+          .expect(200);
+        const exposed = String(
+          res.headers['access-control-expose-headers'],
+        ).toLowerCase();
+        for (const name of [
+          'x-total-count',
+          'x-total-pages',
+          'x-page',
+          'x-limit',
+        ]) {
+          expect(exposed.split(',').map((value) => value.trim())).toContain(
+            name,
+          );
+        }
+      } finally {
+        await app.close();
+      }
+    });
+
     it('does not allow other origins', async () => {
       const app = await createApp('production');
       try {

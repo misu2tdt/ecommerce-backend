@@ -7,7 +7,8 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, FindOptionsWhere, In } from 'typeorm';
+import type { Paging } from '../pagination/pagination';
 import { Address } from '../addresses/entities/address.entity';
 import { DEFAULT_ORDER_PAYMENT_WINDOW_MINUTES } from '../config/environment';
 import { addVndAmounts, multiplyVndAmount } from '../money/vnd-money';
@@ -217,6 +218,10 @@ export class OrdersService {
     return orders.map((order) => this.toOrderView(order));
   }
 
+  async findPageForUser(userId: number, paging: Paging) {
+    return this.findOrderPage({ userId }, paging);
+  }
+
   async findOneForUser(userId: number, id: number) {
     const order = await this.loadOrder({ id, userId });
     if (!order) throw new NotFoundException('Order not found');
@@ -229,6 +234,36 @@ export class OrdersService {
       order: { createdAt: 'DESC', id: 'DESC', items: { id: 'ASC' } },
     });
     return orders.map((order) => this.toOrderView(order));
+  }
+
+  async findPageForAdmin(paging: Paging) {
+    return this.findOrderPage({}, paging);
+  }
+
+  // One page of orders, newest first (ties by id, so pages never overlap or
+  // skip). The page is chosen from the orders alone, then its items and
+  // products are loaded, so an order with many items still counts once.
+  private async findOrderPage(where: FindOptionsWhere<Order>, paging: Paging) {
+    const repository = this.dataSource.getRepository(Order);
+    const [pageRows, total] = await Promise.all([
+      repository.find({
+        select: { id: true },
+        where,
+        order: { createdAt: 'DESC', id: 'DESC' },
+        skip: paging.offset,
+        take: paging.limit,
+      }),
+      repository.count({ where }),
+    ]);
+    const pageIds = pageRows.map((row) => row.id);
+    if (pageIds.length === 0) return { items: [], total };
+
+    const orders = await repository.find({
+      where: { id: In(pageIds) },
+      relations: { items: { variant: { product: true } } },
+      order: { createdAt: 'DESC', id: 'DESC', items: { id: 'ASC' } },
+    });
+    return { items: orders.map((order) => this.toOrderView(order)), total };
   }
 
   async findOneForAdmin(id: number) {

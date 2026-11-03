@@ -14,6 +14,11 @@ import {
 import { Transform } from 'class-transformer';
 import { Trim } from '../../catalog/dto-validation';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  CATALOG_PAGE_SIZE,
+  LimitParam,
+  PageParam,
+} from '../../pagination/pagination';
 
 export enum ProductSort {
   FEATURED = 'featured', // Deterministic default catalog ordering (name ASC, id ASC)
@@ -211,4 +216,11 @@ export class ProductQueryDto {
   @IsOptional()
   @IsEnum(ProductSort)
   sort?: ProductSort;
+
+  // Paging is opt-in: without page and limit the whole list is returned.
+  @PageParam()
+  page?: number;
+
+  @LimitParam(CATALOG_PAGE_SIZE)
+  limit?: number;
 }

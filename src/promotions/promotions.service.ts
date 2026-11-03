@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import type { Paging } from '../pagination/pagination';
 import { isUniqueViolation } from '../catalog/database-errors';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
@@ -66,6 +67,17 @@ export class PromotionsService {
       order: { createdAt: 'DESC', id: 'DESC' },
     });
     return coupons.map((c) => this.toCouponView(c));
+  }
+
+  async findPageForAdmin(paging: Paging) {
+    const [coupons, total] = await this.dataSource
+      .getRepository(Coupon)
+      .findAndCount({
+        order: { createdAt: 'DESC', id: 'DESC' },
+        skip: paging.offset,
+        take: paging.limit,
+      });
+    return { items: coupons.map((c) => this.toCouponView(c)), total };
   }
 
   async findOneForAdmin(id: number) {

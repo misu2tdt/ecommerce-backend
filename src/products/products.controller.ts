@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -20,9 +21,17 @@ import {
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import {
+  CATALOG_PAGE_SIZE,
+  LIST_PAGE_SIZE,
+  ListPaginationQueryDto,
+  listWithPaging,
+  PAGINATION_HEADER_DOCS,
+} from '../pagination/pagination';
 import { UserRole } from '../users/entities/user-role.enum';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductImageDto } from './dto/create-product-image.dto';
@@ -173,10 +182,24 @@ export class ProductsController {
     description:
       'ADMIN only. Includes inactive Products and Variants, all image metadata, and excludes storage keys.',
   })
+  @ApiOkResponse({
+    description:
+      'All products, or one page when page or limit is sent (totals in the X-Total-Count, X-Total-Pages, X-Page and X-Limit headers).',
+    headers: PAGINATION_HEADER_DOCS,
+  })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  findAllForAdmin() {
-    return this.productsService.findAllForAdmin();
+  findAllForAdmin(
+    @Query() query: ListPaginationQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return listWithPaging(
+      response,
+      query,
+      LIST_PAGE_SIZE,
+      () => this.productsService.findAllForAdmin(),
+      (paging) => this.productsService.findPageForAdmin(paging),
+    );
   }
 
   @Get('admin/:id')
@@ -251,13 +274,25 @@ export class ProductsController {
   }
 
   @Get()
-  @ApiOkResponse({ schema: publicProductListSchema })
+  @ApiOkResponse({
+    schema: publicProductListSchema,
+    headers: PAGINATION_HEADER_DOCS,
+  })
   @ApiOperation({
     summary: 'List active public Products',
     description:
-      'Supports category/brand slug and text filters. Includes minPrice, maxPrice, inStock, averageRating and reviewCount.',
+      'Supports category/brand slug and text filters. Includes minPrice, maxPrice, inStock, averageRating and reviewCount. Without page and limit the whole list is returned. Sending either one returns one page (limit defaults to 12, at most 48) as the same array, with the totals in the X-Total-Count, X-Total-Pages, X-Page and X-Limit headers. Every sort ends with the product id, so pages never overlap or skip.',
   })
-  findAll(@Query() query: ProductQueryDto) {
-    return this.productsService.findAll(query);
+  findAll(
+    @Query() query: ProductQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return listWithPaging(
+      response,
+      query,
+      CATALOG_PAGE_SIZE,
+      () => this.productsService.findAll(query),
+      (paging) => this.productsService.findPage(query, paging),
+    );
   }
 }

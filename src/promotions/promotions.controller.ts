@@ -6,17 +6,27 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import {
+  LIST_PAGE_SIZE,
+  ListPaginationQueryDto,
+  listWithPaging,
+  PAGINATION_HEADER_DOCS,
+} from '../pagination/pagination';
 import { UserRole } from '../users/entities/user-role.enum';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
@@ -36,8 +46,22 @@ export class PromotionsController {
     summary: 'List all promotional coupons',
     description: 'ADMIN only.',
   })
-  findAll() {
-    return this.promotionsService.findAllForAdmin();
+  @ApiOkResponse({
+    description:
+      'All coupons, or one page when `page` or `limit` is sent (limit defaults to 20, at most 100). Totals are in the X-Total-Count, X-Total-Pages, X-Page and X-Limit headers.',
+    headers: PAGINATION_HEADER_DOCS,
+  })
+  findAll(
+    @Query() query: ListPaginationQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return listWithPaging(
+      response,
+      query,
+      LIST_PAGE_SIZE,
+      () => this.promotionsService.findAllForAdmin(),
+      (paging) => this.promotionsService.findPageForAdmin(paging),
+    );
   }
 
   @Get(':id')

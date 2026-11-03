@@ -1,5 +1,6 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
+import { PAGINATION_HEADERS } from '../pagination/pagination';
 import type { RuntimeEnvironment } from './environment';
 
 export function configureHttpSecurity(
@@ -17,6 +18,11 @@ export function configureHttpSecurity(
   app.use(helmet());
 
   if (runtime.frontendOrigin) {
-    app.enableCors({ origin: runtime.frontendOrigin });
+    // The paging totals are in response headers, which a browser only lets a
+    // cross-origin page read when they are exposed.
+    app.enableCors({
+      origin: runtime.frontendOrigin,
+      exposedHeaders: [...PAGINATION_HEADERS],
+    });
   }
 }

@@ -21,6 +21,7 @@ import { Product } from './product.entity';
 
 @Entity('product_variants')
 @Index('UQ_product_variants_sku', ['sku'], { unique: true })
+@Index('IDX_product_variants_product', ['productId'])
 @Check(
   'CHK_product_variants_price',
   `"price" >= 0 AND "price" <= ${VND_MAX_AMOUNT}`,

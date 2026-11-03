@@ -5,6 +5,8 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -12,13 +14,21 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
+import {
+  LIST_PAGE_SIZE,
+  ListPaginationQueryDto,
+  listWithPaging,
+  PAGINATION_HEADER_DOCS,
+} from '../pagination/pagination';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrdersService } from './orders.service';
 
@@ -48,9 +58,24 @@ export class OrdersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List the current user’s Orders' })
-  findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.ordersService.findAllForUser(user.id);
+  @ApiOkResponse({
+    description:
+      'All of the useru{2019}s Orders, or one page when `page` or `limit` is sent (limit defaults to 20, at most 100). Totals are in the X-Total-Count, X-Total-Pages, X-Page and X-Limit headers.',
+    headers: PAGINATION_HEADER_DOCS,
+  })
+  @ApiOperation({ summary: 'List the current useru{2019}s Orders' })
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListPaginationQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return listWithPaging(
+      response,
+      query,
+      LIST_PAGE_SIZE,
+      () => this.ordersService.findAllForUser(user.id),
+      (paging) => this.ordersService.findPageForUser(user.id, paging),
+    );
   }
 
   @Post(':id/cancel')

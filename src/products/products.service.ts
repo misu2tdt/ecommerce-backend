@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Brand } from '../brands/entities/brand.entity';
 import {
   isForeignKeyViolation,
@@ -15,6 +15,7 @@ import { createSlug } from '../catalog/slug';
 import { Category } from '../categories/entities/category.entity';
 import { ImageStorageService } from '../image-storage/image-storage.service';
 import { parseVndAmount } from '../money/vnd-money';
+import type { Paging } from '../pagination/pagination';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductQueryDto, ProductSort } from './dto/product-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -129,6 +130,53 @@ export class ProductsService {
   }
 
   async findAll(query: ProductQueryDto): Promise<PublicProduct[]> {
+    const builder = this.publicProductsBuilder();
+    this.applyPublicFilters(builder, query);
+    this.applyPublicSort(builder, query.sort ?? ProductSort.FEATURED);
+    builder.addOrderBy('image.position', 'ASC').addOrderBy('image.id', 'ASC');
+    return this.loadPublicProducts(builder);
+  }
+
+  // One page of the same list. The page is chosen first, from ids only, in the
+  // sort order (every sort ends with the product id, so the order is total and
+  // pages never overlap or skip). Only then are the products of that page loaded
+  // with their images and summaries, so the expensive part runs for one page.
+  async findPage(
+    query: ProductQueryDto,
+    paging: Paging,
+  ): Promise<{ items: PublicProduct[]; total: number }> {
+    const ids = this.productsRepository
+      .createQueryBuilder('product')
+      .innerJoin('product.category', 'category')
+      .leftJoin('product.brand', 'brand')
+      .where('product.status = :status', { status: ProductStatus.ACTIVE });
+    this.applyPublicFilters(ids, query);
+    const total = await ids.getCount();
+
+    this.applyPublicSort(ids, query.sort ?? ProductSort.FEATURED);
+    const pageIds = (
+      await ids
+        .select('product.id', 'id')
+        .offset(paging.offset)
+        .limit(paging.limit)
+        .getRawMany<{ id: number }>()
+    ).map((row) => Number(row.id));
+    if (pageIds.length === 0) return { items: [], total };
+
+    const builder = this.publicProductsBuilder().andWhere(
+      'product.id IN (:...pageIds)',
+      { pageIds },
+    );
+    builder.addOrderBy('image.position', 'ASC').addOrderBy('image.id', 'ASC');
+    const loaded = await this.loadPublicProducts(builder);
+    const position = new Map(pageIds.map((id, index) => [id, index]));
+    loaded.sort((a, b) => position.get(a.id)! - position.get(b.id)!);
+    return { items: loaded, total };
+  }
+
+  // Active products with their category, brand, primary image and the price,
+  // stock and rating summaries.
+  private publicProductsBuilder(): SelectQueryBuilder<Product> {
     const builder = this.productsRepository
       .createQueryBuilder('product')
       .innerJoinAndSelect('product.category', 'category')
@@ -175,6 +223,13 @@ export class ProductsService {
         'reviewCount',
       );
 
+    return builder;
+  }
+
+  private applyPublicFilters(
+    builder: SelectQueryBuilder<Product>,
+    query: ProductQueryDto,
+  ): void {
     if (query.category) {
       builder.andWhere('category.slug = :categorySlug', {
         categorySlug: query.category,
@@ -232,8 +287,12 @@ export class ProductsService {
         variantParams,
       );
     }
+  }
 
-    const sort = query.sort ?? ProductSort.FEATURED;
+  private applyPublicSort(
+    builder: SelectQueryBuilder<Product>,
+    sort: ProductSort,
+  ): void {
     switch (sort) {
       case ProductSort.PRICE_ASC:
         builder
@@ -271,9 +330,11 @@ export class ProductsService {
         builder.orderBy('product.name', 'ASC').addOrderBy('product.id', 'ASC');
         break;
     }
+  }
 
-    builder.addOrderBy('image.position', 'ASC').addOrderBy('image.id', 'ASC');
-
+  private async loadPublicProducts(
+    builder: SelectQueryBuilder<Product>,
+  ): Promise<PublicProduct[]> {
     const { entities, raw } =
       await builder.getRawAndEntities<ProductSummaryRaw>();
 
@@ -437,6 +498,39 @@ export class ProductsService {
       },
     });
     return products.map((product) => this.toAdminProduct(product));
+  }
+
+  // One page of the admin list, in the same order. The page is chosen from ids
+  // alone (name, then id), then its products are loaded with their relations.
+  async findPageForAdmin(
+    paging: Paging,
+  ): Promise<{ items: AdminProduct[]; total: number }> {
+    const [pageRows, total] = await Promise.all([
+      this.productsRepository.find({
+        select: { id: true },
+        order: { name: 'ASC', id: 'ASC' },
+        skip: paging.offset,
+        take: paging.limit,
+      }),
+      this.productsRepository.count(),
+    ]);
+    const pageIds = pageRows.map((row) => row.id);
+    if (pageIds.length === 0) return { items: [], total };
+
+    const products = await this.productsRepository.find({
+      where: { id: In(pageIds) },
+      relations: { category: true, brand: true, images: true, variants: true },
+      order: {
+        name: 'ASC',
+        id: 'ASC',
+        images: { isPrimary: 'DESC', position: 'ASC', id: 'ASC' },
+        variants: { position: 'ASC', id: 'ASC' },
+      },
+    });
+    return {
+      items: products.map((product) => this.toAdminProduct(product)),
+      total,
+    };
   }
 
   async findOneForAdmin(id: number): Promise<AdminProduct> {
