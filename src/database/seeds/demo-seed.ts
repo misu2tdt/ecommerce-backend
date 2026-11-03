@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { DataSource, EntityManager, In } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { Address } from '../../addresses/entities/address.entity';
 import { Brand } from '../../brands/entities/brand.entity';
 import { CartItem } from '../../carts/entities/cart-item.entity';
@@ -37,11 +37,42 @@ export const DEMO_CUSTOMER_EMAIL = 'demo.customer@example.com';
 export const DEMO_ADMIN_EMAIL = 'demo.admin@example.com';
 export const DEMO_PASSWORD = 'DemoOnly!2026';
 
-export const DEMO_ADDRESS_LABEL = 'Phase 6A Demo Address';
-export const DEMO_ORDER_MARKER = 'Phase 6A Fashion Demo Suite';
+// The seeded shipping address is shown to shoppers (account, checkout and the
+// order's own copy), so it reads like a normal home address. The seed recognises
+// its own row by the street line, never by the label alone: a visitor can add an
+// address called "Home" too.
+export const DEMO_ADDRESS_LABEL = 'Home';
+export const DEMO_ADDRESS_LINE1 = '100 Le Loi Street';
+export const DEMO_ADDRESS_LINE2 = 'Apartment 12B';
+
+// How earlier versions of this seed wrote the same rows. They are found and
+// renamed in place when a database seeded that way is seeded again.
+export const PREVIOUS_DEMO_ADDRESS_LABEL = 'Phase 6A Demo Address';
+export const PREVIOUS_DEMO_ORDER_MARKER = 'Phase 6A Fashion Demo Suite';
+const PREVIOUS_DEMO_ADDRESS_LINE1 = '100 Demo Avenue';
 
 export const LEGACY_DEMO_ORDER_MARKER = 'Phase 3B Demo Suite';
 export const LEGACY_DEMO_ADDRESS_LABEL = 'Phase 3B Demo Address';
+
+// Retired catalog rows of the first demo data set, still shown by name in the
+// category and brand lists. Renamed once (only while they still carry the old
+// name) so no shopper sees the word "Demo".
+const LEGACY_CATEGORY_RENAMES = [
+  { slug: 'demo-laptops', from: 'Demo Laptops', to: 'Laptops' },
+  { slug: 'demo-smartphones', from: 'Demo Smartphones', to: 'Smartphones' },
+];
+const LEGACY_BRAND_RENAMES = [
+  {
+    slug: 'nova-demo-technologies',
+    from: 'Nova Demo Technologies',
+    to: 'Nova Technologies',
+  },
+  {
+    slug: 'aster-demo-devices',
+    from: 'Aster Demo Devices',
+    to: 'Aster Devices',
+  },
+];
 
 export const LEGACY_CATEGORY_SLUGS = ['demo-laptops', 'demo-smartphones'];
 export const LEGACY_BRAND_SLUGS = [
@@ -97,22 +128,22 @@ const brandDefinitions = [
   {
     name: 'AeroThread',
     description:
-      'A fictional apparel label specializing in modern everyday essentials and minimalist casualwear.',
+      'An apparel label specializing in modern everyday essentials and minimalist casualwear.',
   },
   {
     name: 'Kanso Basics',
     description:
-      'A fictional brand dedicated to premium comfort essentials, loungewear, and underwear.',
+      'A brand dedicated to premium comfort essentials, loungewear, and underwear.',
   },
   {
     name: 'Veloce Active',
     description:
-      'A fictional performance brand creating technical activewear and outdoor apparel.',
+      'A performance brand creating technical activewear and outdoor apparel.',
   },
   {
     name: 'Monolith Studio',
     description:
-      'A fictional contemporary brand focusing on structured tailoring and outerwear.',
+      'A contemporary brand focusing on structured tailoring and outerwear.',
   },
 ] as const;
 
@@ -1021,6 +1052,11 @@ const variantDefinitions = [
 // One image slot per colour of each product, in the order the seed lists the
 // colours. The image tooling and the seed share this, so the file names the
 // uploader expects always match what the seed attaches.
+// The stock each seeded variant starts with (used by `npm run demo:restock`).
+export function getSeededVariantStock(): Array<{ sku: string; stock: number }> {
+  return variantDefinitions.map(({ sku, stock }) => ({ sku, stock }));
+}
+
 export function getDemoImageSlots(): DemoImageSlot[] {
   return productDefinitions.flatMap((product) => {
     const colors: string[] = [];
@@ -1117,6 +1153,8 @@ export async function seedDemoData(
       .where('slug IN (:...slugs)', { slugs: LEGACY_PRODUCT_SLUGS })
       .execute();
 
+    await renameLegacyCatalog(manager);
+
     const categories = new Map<string, Category>();
     for (const definition of categoryDefinitions) {
       const category = await upsertCategory(manager, definition);
@@ -1191,7 +1229,7 @@ export async function seedDemoData(
         .execute();
     }
 
-    // 4. Upsert Phase 6A fashion cart items
+    // 4. Upsert the fashion cart items
     await upsertCartItem(
       manager,
       cart.id,
@@ -1205,7 +1243,7 @@ export async function seedDemoData(
       2,
     );
 
-    // 5. Upsert Phase 6A fashion wishlist item
+    // 5. Upsert the fashion wishlist item
     await manager.getRepository(WishlistItem).upsert(
       {
         userId: customer.id,
@@ -1214,17 +1252,16 @@ export async function seedDemoData(
       ['userId', 'productId'],
     );
 
-    // 6. Upsert Phase 6A delivered order (without touching legacy order or deleting items)
+    // 6. Upsert the seeded delivered order (without touching the legacy order or visitor orders)
     const deliveredVariant = requireMapped(variants, 'AT-CCT-BLK-M');
     const deliveredOrder = await upsertDeliveredOrder(
       manager,
       customer.id,
       address,
       deliveredVariant,
-      DEMO_ORDER_MARKER,
     );
 
-    // 7. Upsert Phase 6A fashion review
+    // 7. Upsert the fashion review
     await manager.getRepository(ProductReview).upsert(
       {
         userId: customer.id,
@@ -1244,7 +1281,7 @@ export async function seedDemoData(
     // The delivered order was paid: one succeeded demo payment for its total.
     await upsertDemoPayment(manager, deliveredOrder);
 
-    // 8. Upsert Phase 6E promotional coupons
+    // 8. Upsert the promotional coupons
     const couponsCount = await upsertDemoCoupons(manager);
 
     return {
@@ -1496,26 +1533,69 @@ async function upsertDemoCoupons(manager: EntityManager): Promise<number> {
   return coupons.length;
 }
 
+// Renames the retired first-data-set categories and brands, but only rows that
+// still carry the old name (an admin's own edit is left alone) and only when the
+// new name is free.
+async function renameLegacyCatalog(manager: EntityManager): Promise<void> {
+  const groups = [
+    {
+      repository: manager.getRepository(Category),
+      renames: LEGACY_CATEGORY_RENAMES,
+    },
+    { repository: manager.getRepository(Brand), renames: LEGACY_BRAND_RENAMES },
+  ];
+  for (const { repository, renames } of groups as Array<{
+    repository: Repository<Category> | Repository<Brand>;
+    renames: typeof LEGACY_CATEGORY_RENAMES;
+  }>) {
+    for (const { slug, from, to } of renames) {
+      const row = await repository.findOneBy({ slug, name: from });
+      if (!row || (await repository.existsBy({ name: to }))) continue;
+      await repository.update({ id: row.id }, { name: to, description: null });
+    }
+  }
+}
+
 async function upsertAddress(
   manager: EntityManager,
   userId: number,
 ): Promise<Address> {
   const repository = manager.getRepository(Address);
-  const existing = await repository.findOneBy({
+
+  // The first demo data set's address nothing refers to (orders keep their own
+  // copy of the address): only this customer's, only the exact seeded row.
+  await repository.delete({
     userId,
-    label: DEMO_ADDRESS_LABEL,
+    label: LEGACY_DEMO_ADDRESS_LABEL,
+    addressLine2: LEGACY_DEMO_ORDER_MARKER,
+  });
+
+  // Our own row is recognised by its street line, or by the exact label and
+  // marker an earlier seed wrote; it is then renamed in place. A visitor's
+  // address that merely shares the label "Home" is never matched.
+  const existing = await repository.findOne({
+    where: [
+      { userId, addressLine1: DEMO_ADDRESS_LINE1 },
+      {
+        userId,
+        label: PREVIOUS_DEMO_ADDRESS_LABEL,
+        addressLine1: PREVIOUS_DEMO_ADDRESS_LINE1,
+        addressLine2: PREVIOUS_DEMO_ORDER_MARKER,
+      },
+    ],
+    order: { id: 'ASC' },
   });
   return repository.save(
     repository.create({
       ...(existing ?? {}),
       userId,
       label: DEMO_ADDRESS_LABEL,
-      recipientName: 'Demo Customer',
+      recipientName: 'Minh Anh Tran',
       phone: '+84900000000',
-      addressLine1: '100 Demo Avenue',
-      addressLine2: DEMO_ORDER_MARKER,
-      ward: 'Demo Ward',
-      district: 'Demo District',
+      addressLine1: DEMO_ADDRESS_LINE1,
+      addressLine2: DEMO_ADDRESS_LINE2,
+      ward: 'Ben Thanh Ward',
+      district: 'District 1',
       city: 'Ho Chi Minh City',
       stateProvince: null,
       postalCode: '700000',
@@ -1560,7 +1640,6 @@ async function findSeededDeliveredOrder(
   manager: EntityManager,
   userId: number,
   variant: ProductVariant,
-  marker: string,
 ): Promise<Order | null> {
   const repository = manager.getRepository(Order);
 
@@ -1586,9 +1665,14 @@ async function findSeededDeliveredOrder(
     .createQueryBuilder('demo_order')
     .where('demo_order.userId = :userId', { userId })
     .andWhere('demo_order.status = :status', { status: OrderStatus.DELIVERED })
-    .andWhere(`demo_order."shippingAddress" ->> 'addressLine2' = :marker`, {
-      marker,
-    })
+    .andWhere(
+      `(demo_order."shippingAddress" ->> 'addressLine2' = :previousMarker OR (demo_order."shippingAddress" ->> 'addressLine1' = :line1 AND demo_order."shippingAddress" ->> 'addressLine2' = :line2))`,
+      {
+        previousMarker: PREVIOUS_DEMO_ORDER_MARKER,
+        line1: DEMO_ADDRESS_LINE1,
+        line2: DEMO_ADDRESS_LINE2,
+      },
+    )
     .andWhere(
       (query) =>
         `NOT EXISTS ${query
@@ -1619,12 +1703,20 @@ async function upsertDeliveredOrder(
   userId: number,
   address: Address,
   variant: ProductVariant,
-  marker: string,
 ): Promise<Order> {
   const repository = manager.getRepository(Order);
-  let order = await findSeededDeliveredOrder(manager, userId, variant, marker);
+  let order = await findSeededDeliveredOrder(manager, userId, variant);
 
   if (order) {
+    // The seeded order is the seed's own data, so its copy of the address is
+    // renamed with the address (orders placed by visitors keep theirs).
+    if (order.shippingAddress?.addressLine2 === PREVIOUS_DEMO_ORDER_MARKER) {
+      order.shippingAddress = snapshotShippingAddress(address);
+      await repository.update(
+        { id: order.id },
+        { shippingAddress: order.shippingAddress },
+      );
+    }
     return order;
   }
 
@@ -1671,6 +1763,19 @@ async function upsertDemoPayment(
     throw new Error(
       `Demo seed payment key ${idempotencyKey} belongs to another order (${holder.orderId})`,
     );
+  }
+  // Already exactly as the seed wants it: write nothing, so a rerun leaves the
+  // row (and its updatedAt) alone.
+  if (
+    holder &&
+    holder.provider === new DemoPaymentProvider().provider &&
+    holder.amount === order.totalPrice &&
+    holder.currency === DEFAULT_PAYMENT_CURRENCY &&
+    holder.status === PaymentStatus.SUCCEEDED &&
+    holder.providerPaymentId ===
+      new DemoPaymentProvider().getProviderPaymentId(holder.id)
+  ) {
+    return holder;
   }
   await repository.upsert(
     {

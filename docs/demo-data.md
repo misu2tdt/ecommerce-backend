@@ -9,8 +9,8 @@ npm.cmd run seed:demo
 The command is development-only and refuses every database except the exact
 `ecommerce_dev` allowlist target. It never truncates tables or deletes unrelated
 developer records. Rerunning it updates or reuses records identified by the
-seed-owned demo emails, slugs, SKUs, address label, cart relationships, Order
-snapshot marker, and review relationship.
+seed-owned demo emails, slugs, SKUs, the seeded street address, cart relationships,
+the payment of the seeded Order, and the review relationship.
 
 ## Development-only logins
 
@@ -33,8 +33,8 @@ The Phase 6A fashion seed manages the following Phase 6A-owned entity counts:
 - **26 Active Products** and **72 Active ProductVariants** with realistic integer-VND prices (99,000–789,000 VND)
 - **4 deliberately out-of-stock Variants** across different product families
 - 48 ProductImages (one per colour, 22 products with two colours and 4 with one) when `src/database/seeds/demo-images.json` exists; without that file the products have no images. The seed itself never calls Cloudinary. No MoMo calls
-- one saved Address (`Phase 6A Demo Address`), a Cart with 2 items, and one Wishlist item
-- one DELIVERED historical Order (`Phase 6A Fashion Demo Suite`) with an immutable shipping snapshot, and one succeeded `demo` Payment for its total (so it reads as paid; a rerun updates the same row, and the production seed adds it too)
+- one saved Address (`Home`, with an apartment line), a Cart with 2 items, and one Wishlist item
+- one DELIVERED historical Order with a shipping snapshot of that address, and one succeeded `demo` Payment for its total (so it reads as paid; a rerun updates the same row, and the production seed adds it too)
 - one visible verified-purchase Product review on `Classic Crewneck Cotton Tee`
 
 ## Demo product images
@@ -100,3 +100,51 @@ delivered order always has a payment); after that the payment key identifies it.
 Visitor orders, items and payments are never read for update, and if a visitor's
 payment already holds the seed key the seed stops with an error instead of
 moving it.
+
+### Shopper-facing wording
+
+Everything a shopper can read that the seed writes (address, order address,
+category, brand, product, coupon and review text) reads like a normal store, with
+no internal labels. Databases seeded by older versions are cleaned in place by the
+next seed run:
+
+- the saved address is found by its street line (or by the exact old label and
+  marker) and renamed, never duplicated. An address a visitor added that merely
+  shares the label `Home` is left alone;
+- the seeded delivered order's own copy of the address is renamed with it.
+  Orders placed by visitors keep the address copy they were placed with;
+- the first data set's address (nothing refers to it) is removed for the demo
+  customer, and its retired categories and brands lose the word `Demo` from
+  their names, unless an admin has already renamed them;
+- a rerun that finds everything already clean writes nothing.
+
+Run the production seed once after deploying this change to apply it to the public
+demo (see below).
+
+## Refilling demo stock
+
+Demo orders take real stock, so a busy public demo eventually runs out of the
+popular sizes. `npm run demo:restock` puts the stock of the variants the seed owns
+back to the quantities it seeds them with:
+
+```powershell
+npm.cmd run demo:restock -- --dry-run   # show what would change, write nothing
+npm.cmd run demo:restock                # refill
+```
+- It only raises: stock already at or above the seeded quantity is not lowered, so
+  nothing an admin added is reduced.
+- Units held by *pending* orders are not refilled, because such an order can still
+  expire or be cancelled and then returns its units; confirmed and later orders
+  have sold theirs.
+- It only updates `stock` of the seeded variants (found by SKU). No row is created
+  or deleted, and orders, items and payments are only read. It runs in one
+  transaction, locks variants in ascending id like checkout does, and a second run
+  changes nothing. It prints the totals before and after.
+- It uses the same database guards as the seeds. Development needs `ecommerce_dev`,
+  `NODE_ENV=test` needs `ecommerce_test`, and reserved databases are always refused.
+- Production: build first, then set `NODE_ENV=production`, `PRODUCTION_DEMO_SEED_CONFIRM`
+  and `PRODUCTION_DEMO_SEED_DATABASE` (the same variables as the production seed,
+  with the same values) and run `npm run demo:restock:production` (add `-- --dry-run`
+  first). Run it when the demo shows products as sold out, or before showing the
+  demo to someone. Re-running the production seed also resets stock to the seeded
+  quantities, but changes much more.

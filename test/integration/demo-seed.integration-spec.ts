@@ -10,7 +10,8 @@ import {
   DEMO_ADDRESS_LABEL,
   DEMO_ADMIN_EMAIL,
   DEMO_CUSTOMER_EMAIL,
-  DEMO_ORDER_MARKER,
+  DEMO_ADDRESS_LINE1,
+  DEMO_ADDRESS_LINE2,
   DEMO_PASSWORD,
   LEGACY_DEMO_ADDRESS_LABEL,
   LEGACY_DEMO_ORDER_MARKER,
@@ -667,7 +668,7 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
     expect(phase6AOrders).toHaveLength(2); // 1 legacy + 1 phase 6A
 
     const phase6AOrder = phase6AOrders.find(
-      (o) => o.shippingAddress?.addressLine2 === DEMO_ORDER_MARKER,
+      (o) => o.shippingAddress?.addressLine2 === DEMO_ADDRESS_LINE2,
     );
     expect(phase6AOrder).toBeDefined();
     expect(phase6AOrder!.totalPrice).toBe(199000);
@@ -884,6 +885,154 @@ describe('deterministic demo seed on isolated PostgreSQL', () => {
       expect(await visitorState(dataSource, visitors)).toEqual(visitorsBefore);
     });
   });
+
+  describe('shopper-facing wording', () => {
+    const productionOptions = {
+      target: 'production' as const,
+      nodeEnvironment: 'production',
+      productionApproval: {
+        confirmation: PRODUCTION_DEMO_CONFIRMATION,
+        database: 'ecommerce_test',
+      },
+      images: 'none' as const,
+    };
+    const internalWording = /phase|demo|fictional|placeholder|\btest\b/i;
+
+    it('seeds data a shopper can read without any internal wording', async () => {
+      await seedDemoData(dataSource, productionOptions);
+
+      expect(await shopperVisibleText(dataSource)).toEqual([]);
+      const customer = await demoCustomer(dataSource);
+      const addresses = await dataSource
+        .getRepository(Address)
+        .findBy({ userId: customer.id });
+      expect(addresses).toEqual([
+        expect.objectContaining({
+          label: 'Home',
+          addressLine2: expect.stringMatching(/^Apartment /) as string,
+        }),
+      ]);
+    });
+
+    it('cleans a database seeded by the old seed in place, and a second run changes nothing', async () => {
+      await seedDemoData(dataSource, productionOptions);
+      const seeded = await seededDeliveredOrder(dataSource);
+      await makeLookLikeOldSeed(dataSource, seeded.id);
+      // Visitors ordered to the old seeded address, with its old snapshot.
+      const visitors = await addVisitorOrders(dataSource);
+      const legacy = await addLegacyCatalogAndAddress(dataSource);
+      const visitorsBefore = await visitorState(dataSource, visitors);
+      const customer = await demoCustomer(dataSource);
+
+      await seedDemoData(dataSource, productionOptions);
+      const afterFirst = await cleanedState(dataSource);
+
+      // The seeded address is renamed in place: same row, no duplicate.
+      const addresses = await dataSource
+        .getRepository(Address)
+        .findBy({ userId: customer.id });
+      expect(addresses).toHaveLength(1);
+      expect(addresses[0]).toMatchObject({ label: 'Home' });
+      expect(addresses[0].addressLine1).not.toMatch(internalWording);
+      // The legacy address nothing references is gone; its order keeps its copy.
+      expect(
+        await dataSource
+          .getRepository(Address)
+          .countBy({ label: LEGACY_DEMO_ADDRESS_LABEL }),
+      ).toBe(0);
+      expect(
+        (
+          await dataSource.getRepository(Order).findOneByOrFail({
+            id: legacy.legacyOrderId,
+          })
+        ).shippingAddress.addressLine2,
+      ).toBe(LEGACY_DEMO_ORDER_MARKER);
+
+      // The seeded delivered order is intact, with its one succeeded payment,
+      // and its snapshot no longer carries the internal wording.
+      const after = await seededDeliveredOrder(dataSource);
+      expect(after.id).toBe(seeded.id);
+      expect(after.status).toBe(OrderStatus.DELIVERED);
+      expect(after.shippingAddress.addressLine2).toMatch(/^Apartment /);
+      expect(await seedPayments(dataSource)).toEqual([
+        expect.objectContaining({
+          orderId: seeded.id,
+          provider: 'demo',
+          status: PaymentStatus.SUCCEEDED,
+        }),
+      ]);
+
+      // Visitor orders are untouched, snapshots included: they are theirs.
+      expect(await visitorState(dataSource, visitors)).toEqual(visitorsBefore);
+      // Retired catalog rows lose the word "Demo" from their names, but a name an
+      // admin chose is left alone.
+      const names = (table: string) =>
+        dataSource
+          .query<
+            Array<{ name: string }>
+          >(`SELECT name FROM ${table} ORDER BY id`)
+          .then((rows) => rows.map((row) => row.name));
+      expect(await names('categories')).toEqual(
+        expect.arrayContaining(['Laptops', 'Phones']),
+      );
+      expect(await names('brands')).toContain('Nova Technologies');
+      expect(
+        [...(await names('categories')), ...(await names('brands'))].filter(
+          (name) => /demo/i.test(name),
+        ),
+      ).toEqual([]);
+      // Nothing a shopper can read still says "Phase" or "demo".
+      expect(await shopperVisibleText(dataSource)).toEqual([]);
+
+      // A second run changes nothing at all.
+      await seedDemoData(dataSource, productionOptions);
+      expect(await cleanedState(dataSource)).toEqual(afterFirst);
+      expect(await visitorState(dataSource, visitors)).toEqual(visitorsBefore);
+    });
+
+    it("keeps a visitor's own address labelled Home", async () => {
+      await seedDemoData(dataSource, productionOptions);
+      const customer = await demoCustomer(dataSource);
+      const own = await dataSource.getRepository(Address).save({
+        userId: customer.id,
+        label: 'Home',
+        recipientName: 'A Visitor',
+        phone: '+84911111111',
+        addressLine1: '7 Visitor Lane',
+        city: 'Hanoi',
+        countryCode: 'VN',
+        isDefault: false,
+      });
+      // Another visitor renamed the seeded address, so "Home" now belongs to
+      // the visitor's own row only. The seed must go by the street, not the label.
+      await dataSource
+        .getRepository(Address)
+        .update(
+          { userId: customer.id, addressLine1: DEMO_ADDRESS_LINE1 },
+          { label: 'Work' },
+        );
+
+      await seedDemoData(dataSource, productionOptions);
+
+      expect(
+        await dataSource.getRepository(Address).findOneByOrFail({ id: own.id }),
+      ).toMatchObject({
+        addressLine1: '7 Visitor Lane',
+        recipientName: 'A Visitor',
+      });
+      expect(
+        await dataSource.getRepository(Address).findOneByOrFail({
+          userId: customer.id,
+          addressLine1: DEMO_ADDRESS_LINE1,
+        }),
+      ).toMatchObject({ label: 'Home', addressLine2: DEMO_ADDRESS_LINE2 });
+      expect(
+        await dataSource
+          .getRepository(Address)
+          .countBy({ userId: customer.id }),
+      ).toBe(2);
+    });
+  });
 });
 
 async function demoSnapshot(dataSource: DataSource) {
@@ -1016,7 +1165,7 @@ async function placeOrder(
   const customer = await demoCustomer(dataSource);
   const address = await dataSource
     .getRepository(Address)
-    .findOneByOrFail({ userId: customer.id, label: DEMO_ADDRESS_LABEL });
+    .findOneOrFail({ where: { userId: customer.id }, order: { id: 'ASC' } });
   const variant = await dataSource
     .getRepository(ProductVariant)
     .findOneByOrFail({ sku: 'AT-CCT-BLK-M' });
@@ -1070,6 +1219,172 @@ async function visitorState(dataSource: DataSource, orders: Order[]) {
       order: { id: 'ASC' },
     }),
   };
+}
+
+// Everything a shopper can read that comes from the seed, that still carries
+// internal wording. Empty when the data is clean.
+async function shopperVisibleText(dataSource: DataSource): Promise<string[]> {
+  const internal = /phase|demo|fictional|placeholder|\btest\b/i;
+  const customer = await demoCustomer(dataSource);
+  const rows: Array<[string, unknown[]]> = [
+    [
+      'category',
+      await dataSource.query(
+        `SELECT name, description FROM categories WHERE slug = ANY($1)`,
+        [categorySlugs],
+      ),
+    ],
+    [
+      'brand',
+      await dataSource.query(
+        `SELECT name, description FROM brands WHERE slug = ANY($1)`,
+        [brandSlugs],
+      ),
+    ],
+    [
+      'product',
+      await dataSource.query(
+        `SELECT name, description FROM products WHERE slug = ANY($1)`,
+        [productSlugs],
+      ),
+    ],
+    [
+      'variant',
+      await dataSource.query(
+        `SELECT name, attributes FROM product_variants WHERE sku = ANY($1)`,
+        [variantSkus],
+      ),
+    ],
+    ['coupon', await dataSource.query(`SELECT code, name FROM coupons`)],
+    [
+      'review',
+      await dataSource.query(
+        `SELECT title, body FROM product_reviews WHERE "userId" = $1`,
+        [customer.id],
+      ),
+    ],
+    [
+      'address',
+      await dataSource.query(
+        `SELECT label, "recipientName", phone, "addressLine1", "addressLine2", ward, district, city FROM addresses WHERE "userId" = $1`,
+        [customer.id],
+      ),
+    ],
+    [
+      'order address',
+      await dataSource.query(
+        // Only the seed's own order: visitors' orders are theirs and stay as is.
+        `SELECT o."shippingAddress" FROM orders o
+         JOIN payments p ON p."orderId" = o.id
+          AND p."idempotencyKey" = 'demo-seed-order-' || o.id
+         WHERE o."userId" = $1`,
+        [customer.id],
+      ),
+    ],
+  ];
+  return rows.flatMap(([kind, list]) =>
+    list
+      .map((row) => JSON.stringify(row))
+      .filter((text) => internal.test(text))
+      .map((text) => `${kind}: ${text}`),
+  );
+}
+
+// The rows the clean-up touches, in a stable order, to compare two runs.
+async function cleanedState(dataSource: DataSource) {
+  const customer = await demoCustomer(dataSource);
+  const seeded = await seededDeliveredOrder(dataSource);
+  return {
+    addresses: await dataSource
+      .getRepository(Address)
+      .find({ where: { userId: customer.id }, order: { id: 'ASC' } }),
+    seededOrder: seeded,
+    seededPayments: await seedPayments(dataSource),
+    brands: await dataSource.query(
+      `SELECT id, name, slug, description FROM brands ORDER BY id`,
+    ),
+    categories: await dataSource.query(
+      `SELECT id, name, slug, description FROM categories ORDER BY id`,
+    ),
+  };
+}
+
+// Rewrites the seeded rows the way the seed that shipped before this clean-up
+// left them: internal labels and markers in the address, the order snapshot and
+// the brand descriptions.
+async function makeLookLikeOldSeed(dataSource: DataSource, orderId: number) {
+  const customer = await demoCustomer(dataSource);
+  await dataSource.getRepository(Address).update(
+    { userId: customer.id },
+    {
+      label: 'Phase 6A Demo Address',
+      recipientName: 'Demo Customer',
+      addressLine1: '100 Demo Avenue',
+      addressLine2: 'Phase 6A Fashion Demo Suite',
+      ward: 'Demo Ward',
+      district: 'Demo District',
+    },
+  );
+  const old = await dataSource
+    .getRepository(Address)
+    .findOneByOrFail({ userId: customer.id });
+  await dataSource
+    .getRepository(Order)
+    .update({ id: orderId }, { shippingAddress: snapshotShippingAddress(old) });
+  await dataSource.query(
+    `UPDATE brands SET description = 'A fictional apparel label.' WHERE slug = ANY($1)`,
+    [brandSlugs],
+  );
+}
+
+// A legacy 3B address nothing references, its order (which keeps its own
+// snapshot), and the retired catalog rows with their old names.
+async function addLegacyCatalogAndAddress(dataSource: DataSource) {
+  const customer = await demoCustomer(dataSource);
+  const legacyAddress = await dataSource.getRepository(Address).save({
+    userId: customer.id,
+    label: LEGACY_DEMO_ADDRESS_LABEL,
+    recipientName: 'Demo Customer',
+    phone: '+84900000000',
+    addressLine1: '100 Demo Avenue',
+    addressLine2: LEGACY_DEMO_ORDER_MARKER,
+    ward: 'Demo Ward',
+    district: 'Demo District',
+    city: 'Ho Chi Minh City',
+    postalCode: '700000',
+    countryCode: 'VN',
+    isDefault: false,
+  });
+  const variant = await dataSource
+    .getRepository(ProductVariant)
+    .findOneByOrFail({ sku: 'AT-CCT-BLK-M' });
+  const legacyOrder = await dataSource.getRepository(Order).save({
+    userId: customer.id,
+    subtotalPrice: variant.price,
+    discountPrice: 0,
+    totalPrice: variant.price,
+    couponCode: null,
+    couponType: null,
+    couponValue: null,
+    status: OrderStatus.CANCELLED,
+    shippingAddress: snapshotShippingAddress(legacyAddress),
+  });
+  await dataSource.getRepository(Category).save({
+    name: 'Demo Laptops',
+    slug: 'demo-laptops',
+    description: 'Fictional portable computers',
+  });
+  await dataSource.getRepository(Category).save({
+    name: 'Phones',
+    slug: 'demo-smartphones',
+    description: 'Renamed by an admin',
+  });
+  await dataSource.getRepository(Brand).save({
+    name: 'Nova Demo Technologies',
+    slug: 'nova-demo-technologies',
+    description: 'Fictional tech brand',
+  });
+  return { legacyOrderId: legacyOrder.id };
 }
 
 async function removeOrder(dataSource: DataSource, orderId: number) {
