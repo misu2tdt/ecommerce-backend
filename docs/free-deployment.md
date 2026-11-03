@@ -112,6 +112,12 @@ address, order, and review, but deliberately skips the development demo ADMIN.
 The deterministic credentials in `docs/demo-data.md` are local-only and must
 never be reused for a public deployment.
 
+Demo orders take real stock. To refill the seeded variants (and nothing else), build,
+then run `npm run demo:restock:production -- --dry-run` and, if the numbers look right,
+the same command without the flag. It needs the same `NODE_ENV`, `DATABASE_URL`,
+`PRODUCTION_DEMO_SEED_CONFIRM` and `PRODUCTION_DEMO_SEED_DATABASE` as the seed. See
+[demo-data.md](./demo-data.md#refilling-demo-stock).
+
 Provision a production ADMIN separately and explicitly:
 
 1. Generate a unique strong password in a password manager and register a new
