@@ -148,9 +148,11 @@ describe('demo seed product images on isolated PostgreSQL', () => {
   it('adds images to products that already exist without images (the production case)', async () => {
     await seedDemoData(dataSource, { ...productionOptions, images: 'none' });
     expect(await images().count()).toBe(0);
-    const productIds = (await dataSource.getRepository(Product).find()).map(
-      (p) => p.id,
-    );
+    // find() has no ORDER BY, and re-running the seed rewrites rows, so rows may
+    // come back in any physical order: compare the ids in a fixed order.
+    const productIds = (
+      await dataSource.getRepository(Product).find({ order: { id: 'ASC' } })
+    ).map((p) => p.id);
 
     await seedDemoData(dataSource, {
       ...productionOptions,
@@ -159,7 +161,9 @@ describe('demo seed product images on isolated PostgreSQL', () => {
 
     expect(await images().count()).toBe(48);
     expect(
-      (await dataSource.getRepository(Product).find()).map((p) => p.id),
+      (
+        await dataSource.getRepository(Product).find({ order: { id: 'ASC' } })
+      ).map((p) => p.id),
     ).toEqual(productIds);
   });
 
