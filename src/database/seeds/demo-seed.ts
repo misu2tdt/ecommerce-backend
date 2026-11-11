@@ -6,6 +6,8 @@ import { CartItem } from '../../carts/entities/cart-item.entity';
 import { Cart } from '../../carts/entities/cart.entity';
 import { createSlug } from '../../catalog/slug';
 import { Category } from '../../categories/entities/category.entity';
+import { CollectionProduct } from '../../collections/entities/collection-product.entity';
+import { Collection } from '../../collections/entities/collection.entity';
 import { OrderItem } from '../../orders/entities/order-item.entity';
 import { OrderStatus } from '../../orders/entities/order-status.enum';
 import { Order } from '../../orders/entities/order.entity';
@@ -1085,6 +1087,8 @@ export interface DemoSeedSummary {
   variants: number;
   images: number;
   coupons: number;
+  // Sample collections: 0 for the production target.
+  collections: number;
   addresses: number;
   cartItems: number;
   wishlistItems: number;
@@ -1284,6 +1288,12 @@ export async function seedDemoData(
     // 8. Upsert the promotional coupons
     const couponsCount = await upsertDemoCoupons(manager);
 
+    // 9. Sample collections: development and test only. The production target
+    // does not create collections yet.
+    const collectionsCount = isProduction
+      ? 0
+      : await upsertDemoCollections(manager, products);
+
     return {
       users: isProduction ? 1 : 2,
       categories: categoryDefinitions.length,
@@ -1292,6 +1302,7 @@ export async function seedDemoData(
       variants: variantDefinitions.length,
       images: imageCount,
       coupons: couponsCount,
+      collections: collectionsCount,
       addresses: 1,
       cartItems: 2,
       wishlistItems: 1,
@@ -1531,6 +1542,78 @@ async function upsertDemoCoupons(manager: EntityManager): Promise<number> {
     );
   }
   return coupons.length;
+}
+
+// Two sample collections made only of products this seed creates, chosen by name.
+// The list order is the display order.
+const collectionDefinitions = [
+  {
+    name: 'Everyday Essentials',
+    description: 'Simple pieces that go with everything, from tees to socks.',
+    isFeatured: true,
+    sortOrder: 0,
+    products: [
+      'Classic Crewneck Cotton Tee',
+      'Heavyweight Boxy Pocket Tee',
+      'Classic Pique Cotton Polo',
+      'Everyday Stretch Chino Pants',
+      'Bamboo Fiber Boxer Briefs 3-Pack',
+      'Cushioned Cotton Crew Socks 3-Pack',
+      'Heavy Canvas Daily Tote Bag',
+    ],
+  },
+  {
+    name: 'Layering Pieces',
+    description: 'Hoodies, overshirts and light jackets to build an outfit on.',
+    isFeatured: false,
+    sortOrder: 1,
+    products: [
+      'Waffle Knit Long Sleeve Tee',
+      'Relaxed Oxford Button-Down Shirt',
+      'Structured Workwear Overshirt',
+      'French Terry Full-Zip Hoodie',
+      'Heavyweight Pullover Sweatshirt',
+      'Packable Trail Windbreaker',
+      'Minimalist Technical Bomber Jacket',
+    ],
+  },
+];
+
+// Creates or updates the sample collections by slug and rewrites each one's
+// membership, so a rerun gives the same rows. Returns how many collections.
+async function upsertDemoCollections(
+  manager: EntityManager,
+  products: Map<string, Product>,
+): Promise<number> {
+  for (const definition of collectionDefinitions) {
+    const slug = createSlug(definition.name);
+    await manager.getRepository(Collection).upsert(
+      {
+        slug,
+        name: definition.name,
+        description: definition.description,
+        heroImageUrl: null,
+        isActive: true,
+        isFeatured: definition.isFeatured,
+        sortOrder: definition.sortOrder,
+      },
+      ['slug'],
+    );
+    const collection = await manager
+      .getRepository(Collection)
+      .findOneByOrFail({ slug });
+
+    await manager.delete(CollectionProduct, { collectionId: collection.id });
+    await manager.insert(
+      CollectionProduct,
+      definition.products.map((productName, position) => ({
+        collectionId: collection.id,
+        productId: requireMapped(products, productName).id,
+        position,
+      })),
+    );
+  }
+  return collectionDefinitions.length;
 }
 
 // Renames the retired first-data-set categories and brands, but only rows that

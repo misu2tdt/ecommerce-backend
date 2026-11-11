@@ -51,6 +51,7 @@ The API is one NestJS application with a module per area:
 | --- | --- |
 | `auth`, `users` | Registration, login (bcrypt, JWT), roles `USER` and `ADMIN` |
 | `products`, `categories`, `brands` | Catalog with variants (size, colour, price, stock), images, filters, sorting, paging |
+| `collections` | Curated, ordered groups of products ("Everyday Essentials"): public list and detail, `GET /products?collection=<slug>`, admin management (see [docs/collections.md](./docs/collections.md)) |
 | `carts`, `addresses`, `wishlist`, `reviews`, `promotions` | Shopping features, coupons, verified-purchase reviews |
 | `orders` | Checkout, order lifecycle, cancellation, expiry of unpaid orders |
 | `payments` | Payment attempts, MoMo and demo providers, one event pipeline, admin reconciliation |
@@ -270,7 +271,7 @@ Useful commands:
 
 | Command | Purpose |
 | --- | --- |
-| `npm run seed:demo` | Idempotent demo catalog, accounts and a delivered order (development database only) |
+| `npm run seed:demo` | Idempotent demo catalog, accounts, two sample collections and a delivered order (development database only) |
 | `npm run demo:restock -- --dry-run` | Show how a refill of demo stock would change it, then run without the flag |
 | `npm run test:integration` | Needs `.env.test` and `ECOMMERCE_TEST_DB_PASSWORD` in the shell |
 | `npm run dev:db:down` | Stop the local database container (keeps the data) |

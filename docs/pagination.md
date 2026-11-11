@@ -24,6 +24,8 @@ written before it existed keep working unchanged.
 | `GET /products/admin` | 20 | 100 | name, then `id` |
 | `GET /admin/reviews` | 20 | 100 | newest first, then `id` descending |
 | `GET /admin/promotions` | 20 | 100 | newest first, then `id` descending |
+| `GET /collections` | 20 | 100 | `sortOrder`, then `id` |
+| `GET /admin/collections` | 20 | 100 | `sortOrder`, then `id` |
 
 `GET /admin/payments/reconciliation` was already paginated with its own body
 (`{ items, page, limit, total }`) and keeps that shape.
@@ -46,8 +48,13 @@ requests and a page would repeat or skip a row.
 | `price_desc` | lowest active variant price descending (products without one last), name, id |
 | `newest` | created descending, id descending |
 
-All filters (`category`, `brand`, `q`, `size`, `color`, `minPrice`, `maxPrice`,
-`inStock`) work together with paging, and `X-Total-Count` counts the filtered rows.
+All filters (`category`, `brand`, `collection`, `q`, `size`, `color`, `minPrice`,
+`maxPrice`, `inStock`) work together with paging, and `X-Total-Count` counts the
+filtered rows. With `collection=<slug>` and no `sort`, the order is the
+collection's own display order, then `id`; any `sort` sent (even `featured`) is
+used instead. An unknown or inactive collection is not an error: it gives an empty
+list with `X-Total-Count: 0` and `X-Total-Pages: 0`. See
+[collections](./collections.md).
 A product page is chosen first from ids alone, then only those products are loaded
 with their images and summaries.
 

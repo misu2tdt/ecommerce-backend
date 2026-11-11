@@ -144,6 +144,17 @@ export class ProductQueryDto {
   brand?: string;
 
   @ApiPropertyOptional({
+    example: 'everyday-essentials',
+    description:
+      'Collection slug: only products of that collection, in its display order unless `sort` is sent. An unknown or inactive collection gives an empty list. Products without an active variant are left out here, as in the collection itself.',
+  })
+  @Trim()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  collection?: string;
+
+  @ApiPropertyOptional({
     example: 'tee',
     description: 'Product name search.',
   })

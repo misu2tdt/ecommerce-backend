@@ -162,4 +162,33 @@ describe('ProductQueryDto Validation & Transformation', () => {
       expect(errors.some((e) => e.property === 'sort')).toBe(true);
     });
   });
+
+  describe('Collection filter', () => {
+    it('accepts a collection slug and trims it', async () => {
+      const { dto, errors } = await transformAndValidate({
+        collection: '  everyday-essentials ',
+      });
+      expect(errors).toHaveLength(0);
+      expect(dto.collection).toBe('everyday-essentials');
+    });
+
+    it('works together with paging and an explicit sort', async () => {
+      const { dto, errors } = await transformAndValidate({
+        collection: 'layering-pieces',
+        sort: 'price_asc',
+        page: '2',
+        limit: '6',
+      });
+      expect(errors).toHaveLength(0);
+      expect(dto.sort).toBe(ProductSort.PRICE_ASC);
+      expect(dto.page).toBe(2);
+    });
+
+    it('rejects a collection longer than 255 characters', async () => {
+      const { errors } = await transformAndValidate({
+        collection: 'a'.repeat(256),
+      });
+      expect(errors.some((e) => e.property === 'collection')).toBe(true);
+    });
+  });
 });

@@ -132,7 +132,7 @@ export class ProductsService {
   async findAll(query: ProductQueryDto): Promise<PublicProduct[]> {
     const builder = this.publicProductsBuilder();
     this.applyPublicFilters(builder, query);
-    this.applyPublicSort(builder, query.sort ?? ProductSort.FEATURED);
+    this.applyPublicOrder(builder, query);
     builder.addOrderBy('image.position', 'ASC').addOrderBy('image.id', 'ASC');
     return this.loadPublicProducts(builder);
   }
@@ -153,7 +153,7 @@ export class ProductsService {
     this.applyPublicFilters(ids, query);
     const total = await ids.getCount();
 
-    this.applyPublicSort(ids, query.sort ?? ProductSort.FEATURED);
+    this.applyPublicOrder(ids, query);
     const pageIds = (
       await ids
         .select('product.id', 'id')
@@ -243,6 +243,14 @@ export class ProductsService {
         search: `%${query.q}%`,
       });
     }
+    if (query.collection) {
+      // Members of an active collection, with the collection's own visibility
+      // rule: a product needs an active variant to show in it.
+      builder.andWhere(
+        `(EXISTS (SELECT 1 FROM "collection_products" cp INNER JOIN "collections" col ON col."id" = cp."collectionId" WHERE cp."productId" = product.id AND col."slug" = :collectionSlug AND col."isActive" = true) AND EXISTS (SELECT 1 FROM "product_variants" cv WHERE cv."productId" = product.id AND cv."isActive" = true))`,
+        { collectionSlug: query.collection },
+      );
+    }
 
     const hasVariantFilter =
       (query.size && query.size.length > 0) ||
@@ -287,6 +295,25 @@ export class ProductsService {
         variantParams,
       );
     }
+  }
+
+  // The order of a public list. Inside a collection, with no `sort` sent, the
+  // collection's own display order wins; any explicit sort (even `featured`) is
+  // honoured instead. The product id ends every order, so pages never overlap.
+  private applyPublicOrder(
+    builder: SelectQueryBuilder<Product>,
+    query: ProductQueryDto,
+  ): void {
+    if (query.collection && query.sort === undefined) {
+      builder
+        .orderBy(
+          '(SELECT cp."position" FROM "collection_products" cp INNER JOIN "collections" col ON col."id" = cp."collectionId" WHERE cp."productId" = product.id AND col."slug" = :collectionSlug)',
+          'ASC',
+        )
+        .addOrderBy('product.id', 'ASC');
+      return;
+    }
+    this.applyPublicSort(builder, query.sort ?? ProductSort.FEATURED);
   }
 
   private applyPublicSort(

@@ -19,10 +19,34 @@ the payment of the seeded Order, and the review relationship.
 | Customer | `demo.customer@example.com` | `DemoOnly!2026` |
 | Admin    | `demo.admin@example.com`    | `DemoOnly!2026` |
 
-These deterministic credentials are fictional and intended only for local
-development. Never reuse either account or password for a public deployment.
+These deterministic credentials are fictional and public. The development and
+test seeds create both accounts. The demo admin on the public deployment is a
+deliberately public, manually created account (see below), and the same password
+must never be used for any real or operator account.
 The guarded production portfolio seed creates only the demo customer needed by
 the order/review relationships; it never creates or updates an ADMIN account.
+
+## Public demo admin (production)
+
+The public deployment has one demo admin, `demo.admin@example.com`, with the same
+documented demo password. The credentials are deliberately public: the storefront
+shows them on its `/demo-accounts` page. The production seed does not create this
+account, so it is made by hand:
+
+1. Register `demo.admin@example.com` through the normal sign-up flow.
+2. Promote that one row in SQL and check that it affects exactly 1 row:
+
+   ```sql
+   UPDATE users SET role = 'admin' WHERE email = 'demo.admin@example.com';
+   ```
+
+- **What it can do:** full ADMIN access to the live catalog, orders, promotions
+  and reviews.
+- **The risk:** anyone can sign in with it and change or delete catalog data, and
+  every visitor sees those changes.
+- **Recovery:** rerun the guarded production seed to restore the seeded demo
+  content (it never touches the admin account), or use the database provider's
+  point-in-time restore for anything the seed does not own.
 
 ## Phase 6A Fashion demo content
 
@@ -36,6 +60,15 @@ The Phase 6A fashion seed manages the following Phase 6A-owned entity counts:
 - one saved Address (`Home`, with an apartment line), a Cart with 2 items, and one Wishlist item
 - one DELIVERED historical Order with a shipping snapshot of that address, and one succeeded `demo` Payment for its total (so it reads as paid; a rerun updates the same row, and the production seed adds it too)
 - one visible verified-purchase Product review on `Classic Crewneck Cotton Tee`
+
+### Sample collections
+
+The development and test seeds also create two [collections](./collections.md)
+from the products above, both active: **Everyday Essentials** (featured, 7
+products) and **Layering Pieces** (7 products). They are found by slug and their
+membership is rewritten on every run, so a rerun gives the same rows. The
+production seed does **not** create collections yet and leaves any that exist
+alone. They add no categories, brands, products or variants.
 
 ## Demo product images
 

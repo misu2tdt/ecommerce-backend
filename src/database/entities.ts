@@ -14,6 +14,8 @@ import { ProductReview } from '../reviews/entities/product-review.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { PaymentEvent } from '../payments/entities/payment-event.entity';
 import { Coupon } from '../promotions/entities/coupon.entity';
+import { CollectionProduct } from '../collections/entities/collection-product.entity';
+import { Collection } from '../collections/entities/collection.entity';
 
 export const databaseEntities = [
   User,
@@ -32,4 +34,6 @@ export const databaseEntities = [
   Payment,
   PaymentEvent,
   Coupon,
+  Collection,
+  CollectionProduct,
 ];

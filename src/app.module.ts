@@ -9,6 +9,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BrandsModule } from './brands/brands.module';
 import { CategoriesModule } from './categories/categories.module';
+import { CollectionsModule } from './collections/collections.module';
 import { validateRuntimeEnvironment } from './config/environment';
 import { createThrottlerOptions } from './config/throttling';
 import { createDatabaseOptions } from './database/database-options';
@@ -63,6 +64,7 @@ import { PromotionsModule } from './promotions/promotions.module';
     ReviewsModule,
     PaymentsModule,
     PromotionsModule,
+    CollectionsModule,
   ],
   controllers: [AppController],
   providers: [

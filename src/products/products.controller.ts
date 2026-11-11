@@ -281,7 +281,7 @@ export class ProductsController {
   @ApiOperation({
     summary: 'List active public Products',
     description:
-      'Supports category/brand slug and text filters. Includes minPrice, maxPrice, inStock, averageRating and reviewCount. Without page and limit the whole list is returned. Sending either one returns one page (limit defaults to 12, at most 48) as the same array, with the totals in the X-Total-Count, X-Total-Pages, X-Page and X-Limit headers. Every sort ends with the product id, so pages never overlap or skip.',
+      'Supports category/brand/collection slug and text filters (a collection lists its products in its own order unless a sort is sent). Includes minPrice, maxPrice, inStock, averageRating and reviewCount. Without page and limit the whole list is returned. Sending either one returns one page (limit defaults to 12, at most 48) as the same array, with the totals in the X-Total-Count, X-Total-Pages, X-Page and X-Limit headers. Every sort ends with the product id, so pages never overlap or skip.',
   })
   findAll(
     @Query() query: ProductQueryDto,

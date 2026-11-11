@@ -67,6 +67,8 @@ export async function cleanTestDatabase(dataSource: DataSource): Promise<void> {
     await manager.query('DELETE FROM "order_items"');
     await manager.query('DELETE FROM "orders"');
     await manager.query('DELETE FROM "addresses"');
+    // Memberships go with their collection (ON DELETE CASCADE).
+    await manager.query('DELETE FROM "collections"');
     await manager.query('DELETE FROM "product_variants"');
     await manager.query('DELETE FROM "product_images"');
     await manager.query('DELETE FROM "products"');
