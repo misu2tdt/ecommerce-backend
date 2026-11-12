@@ -102,6 +102,89 @@ tests) adds no images, so those tests stay deterministic. Set
 `DEMO_SEED_TEST_IMAGES=true` to opt in. Banner entries are only stored in the
 JSON for the storefront; they are not attached to products.
 
+## Catalog expansion (batch 1)
+
+A second, separate seed adds more catalog on top of the base demo catalog above.
+It lives in `src/database/seeds/catalog-expansion/` and the base seed, its tests
+and `seed:demo:test` are unchanged: the browser smoke database still has exactly
+26 products, 5 categories and 4 brands.
+
+**What it creates** (counts are for a database that has the base catalog):
+
+| Entity | Added | Total afterwards |
+| --- | --- | --- |
+| Categories | 2 (`Activewear`, `Loungewear & Sleepwear`) | 7 |
+| Brands | 4 (`Tidewell`, `Hushwell`, `Ardent Motion`, `Cinder & Oak`) | 8 |
+| Products | 44, all active | 70 |
+| Variants | 323 (every colour x size) | 395 |
+| Collections | 6: `New Arrivals` (featured), `Office Essentials`, `Weekend Casual`, `Rainy Season`, `Active Everyday`, `Tet Gift Edit` | 6 (8 where the development or test seed's two sample collections exist) |
+| Coupons | 2: `TET2027` (15% off, from 700,000 VND, at most 150,000 VND) and `RAINY100` (100,000 VND off, from 900,000 VND) | 4 |
+| Product images | up to 91, one per colour, from `demo-images.json` | - |
+
+Variants are named `Colour / Size` (colour only for one-size products) with
+SKU `{prefix}-{colour code}-{size code}`, for example `AM-SHL-BLK-M`. Stock is
+`round(base stock x size factor x colour factor)`, at least 3, then 8 variants are
+set to sold out and 6 to nearly sold out on purpose. A collection's members are
+base and new products, in the listed order. Its cover image is the manifest's
+`banner-collection-<slug>` banner when there is one, otherwise none. The data is
+compiled TypeScript (`batch1.data.ts`); the seed reads no spreadsheet at runtime.
+
+**Commands** (run from `ecommerce-backend`):
+
+```powershell
+npm.cmd run seed:demo:catalog               # development database (ecommerce_dev) only
+npm.cmd run build                           # production: build first
+npm.cmd run seed:demo:catalog:production    # needs NODE_ENV=production,
+                                            # PRODUCTION_DEMO_SEED_CONFIRM and
+                                            # PRODUCTION_DEMO_SEED_DATABASE
+```
+
+It needs the base demo catalog first (`seed:demo`, or `seed:demo:production` for the
+public demo). Without it the command stops with a message saying to run the base
+seed first and writes nothing. There is no npm script for the test target; the
+integration tests call it directly. It uses the same database guards as the other
+seeds and never creates or updates a user, so it never touches an ADMIN account. It
+prints, for each entity, how many rows it created and how many were already
+present, and how many new products still have no image.
+
+**Safe order for the public demo:**
+
+1. Generate the images in a folder outside the repo: 91 product images
+   `{product-slug}__{colour-slug}.jpg`, the two category banners
+   (`category-activewear`, `category-loungewear-sleepwear`) and the six collection
+   covers (`banner-collection-<collection-slug>`), next to the 48 images of the base
+   catalog.
+2. Check the folder, then upload it. The flag makes the expected product images the
+   base catalog's 48 plus these 91 (139 in all); without it nothing changes and a
+   batch 1 image is reported as unexpected. A dry run makes no network call and
+   needs no credentials. Missing batch banners are only listed as a note:
+
+   ```powershell
+   npm.cmd run images:upload -- --dir <folder> --catalog all --dry-run
+   npm.cmd run images:upload -- --dir <folder> --catalog all
+   ```
+
+3. Commit the rewritten `src/database/seeds/demo-images.json`.
+4. Run `npm run seed:demo:catalog` locally against the development database and look
+   at the result.
+5. Run `npm run seed:demo:catalog:production` last.
+
+**Why it only inserts.** Categories and brands are matched by slug, products by slug,
+variants by SKU, coupons by code and collections by slug, and a row that already
+exists is never written to. A rerun adds only what is missing, so a price, name,
+description, status or stock an admin changed, stock that orders took, a collection
+an admin edited or reordered and a deactivated coupon all survive. For the same
+reason a collection that exists keeps its cover image (or lack of one) even if a
+banner was uploaded later. Product images follow the base seed's rules: missing
+pictures are attached on a rerun (so images can be added in a later run), an image
+is never deleted and an admin's primary image stays primary. Everything runs in one
+transaction, so a failure leaves nothing half-written.
+
+**Recovery.** Nothing is deleted by the seed, so there is no undo command. To go
+back, use the database provider's point-in-time restore, or restore a Neon branch
+made before the run (create the branch first, then run the seed against the main
+branch).
+
 ## Fresh database vs. Production upgrade behavior
 
 ### Fresh isolated database

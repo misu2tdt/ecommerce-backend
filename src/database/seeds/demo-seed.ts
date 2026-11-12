@@ -98,7 +98,7 @@ export const LEGACY_VARIANT_SKUS = [
 
 const BCRYPT_ROUNDS = 10;
 
-const categoryDefinitions = [
+export const categoryDefinitions = [
   {
     name: 'T-Shirts & Tops',
     description:
@@ -126,7 +126,7 @@ const categoryDefinitions = [
   },
 ] as const;
 
-const brandDefinitions = [
+export const brandDefinitions = [
   {
     name: 'AeroThread',
     description:
@@ -1410,7 +1410,7 @@ async function upsertVariant(
     .findOneByOrFail({ sku: definition.sku });
 }
 
-function resolveImageManifest(options: {
+export function resolveImageManifest(options: {
   target: DemoSeedTarget;
   images?: 'none' | 'file' | DemoImageManifest;
   imagesFile?: string;
@@ -1431,11 +1431,13 @@ function resolveImageManifest(options: {
 
 // Attaches one image per colour, in the seed's colour order. Never deletes: an
 // image an admin uploaded stays, and so does an admin's choice of primary.
-// Returns how many demo images the products have afterwards.
-async function syncProductImages(
+// Returns how many demo images the products have afterwards. `slots` defaults to
+// the base catalog; the catalog expansion passes its own.
+export async function syncProductImages(
   manager: EntityManager,
   products: ReadonlyMap<string, Product>,
   manifest: DemoImageManifest,
+  slots: readonly DemoImageSlot[] = getDemoImageSlots(),
 ): Promise<number> {
   const repository = manager.getRepository(ProductImage);
   const entries = new Map(
@@ -1444,7 +1446,6 @@ async function syncProductImages(
       entry,
     ]),
   );
-  const slots = getDemoImageSlots();
   let total = 0;
 
   for (const [productName, product] of products) {

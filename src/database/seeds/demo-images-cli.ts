@@ -20,9 +20,13 @@ import {
   type DemoImageUploadOutcome,
 } from './demo-image-upload';
 import { getDemoImageSlots } from './demo-seed';
+import {
+  CATALOG_EXPANSION_BANNER_NAMES,
+  getCatalogExpansionImageSlots,
+} from './catalog-expansion/image-slots';
 
 const USAGE =
-  'Usage: npm run images:upload -- --dir <image folder> [--dry-run]';
+  'Usage: npm run images:upload -- --dir <image folder> [--catalog all] [--dry-run]';
 
 export interface DemoImagesCliDependencies {
   env: Record<string, string | undefined>;
@@ -51,8 +55,20 @@ export async function runDemoImagesCli(
       credentials = readCloudinaryCredentials(dependencies.env);
     }
 
-    const slots = dependencies.slots ?? getDemoImageSlots();
-    const report = analyzeDemoImageFolder(options.dir, slots);
+    // With "--catalog all" the expected images are the base catalog's plus the
+    // catalog expansion's; without it only the base catalog's, as before.
+    const slots =
+      dependencies.slots ??
+      (options.catalog === 'all'
+        ? [...getDemoImageSlots(), ...getCatalogExpansionImageSlots()]
+        : getDemoImageSlots());
+    const report = analyzeDemoImageFolder(
+      options.dir,
+      slots,
+      options.catalog === 'all'
+        ? { expectedBanners: CATALOG_EXPANSION_BANNER_NAMES }
+        : {},
+    );
     for (const line of formatDemoImageReport(report, slots.length)) {
       io.log(line);
     }
@@ -121,15 +137,24 @@ export async function runDemoImagesCli(
 
 function parseArguments(
   argv: readonly string[],
-): { dir: string; dryRun: boolean } | { error: string } {
+):
+  | { dir: string; dryRun: boolean; catalog: 'base' | 'all' }
+  | { error: string } {
   let dir: string | undefined;
   let dryRun = false;
+  let catalog: 'base' | 'all' = 'base';
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--dry-run') {
       dryRun = true;
     } else if (argument === '--dir') {
       dir = argv[index + 1];
+      index += 1;
+    } else if (argument === '--catalog') {
+      if (argv[index + 1] !== 'all') {
+        return { error: '--catalog only accepts the value "all"' };
+      }
+      catalog = 'all';
       index += 1;
     } else {
       return { error: `Unknown argument: ${argument}` };
@@ -138,5 +163,5 @@ function parseArguments(
   if (!dir || dir.startsWith('--')) {
     return { error: 'Missing --dir <image folder>' };
   }
-  return { dir, dryRun };
+  return { dir, dryRun, catalog };
 }

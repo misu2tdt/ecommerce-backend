@@ -47,6 +47,10 @@ export interface DemoImageReport {
   duplicates: Array<{ name: string; files: string[] }>;
   oversized: Array<{ fileName: string; sizeBytes: number }>;
   unreadable: Array<{ fileName: string; reason: string }>;
+  // Only set when the caller names the banners it expects (the catalog
+  // expansion does). A missing banner is a note, not a problem: banners are
+  // optional.
+  missingBanners?: string[];
 }
 
 export function parseDemoImageFileName(
@@ -71,7 +75,7 @@ export function parseDemoImageFileName(
 export function analyzeDemoImageFolder(
   directory: string,
   slots: readonly DemoImageSlot[],
-  options: { maxBytes?: number } = {},
+  options: { maxBytes?: number; expectedBanners?: readonly string[] } = {},
 ): DemoImageReport {
   const maxBytes = options.maxBytes ?? MAX_DEMO_IMAGE_BYTES;
   if (!existsSync(directory) || !statSync(directory).isDirectory()) {
@@ -208,6 +212,13 @@ export function analyzeDemoImageFolder(
   report.productFiles.sort(byName);
   report.bannerFiles.sort(byName);
   report.duplicates.sort(byName);
+
+  if (options.expectedBanners) {
+    const found = new Set(report.bannerFiles.map((file) => file.name));
+    report.missingBanners = options.expectedBanners.filter(
+      (name) => !found.has(name),
+    );
+  }
   return report;
 }
 
@@ -232,6 +243,14 @@ export function formatDemoImageReport(
   ];
   for (const banner of report.bannerFiles)
     lines.push(`  banner: ${banner.name}`);
+  if (report.missingBanners && report.missingBanners.length > 0) {
+    lines.push(
+      `Expected banners not found (${report.missingBanners.length}, optional):`,
+    );
+    for (const name of report.missingBanners) {
+      lines.push(`  no banner: ${name}`);
+    }
+  }
 
   if (report.missing.length > 0) {
     lines.push(`Missing product images (${report.missing.length}):`);

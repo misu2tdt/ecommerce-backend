@@ -272,6 +272,8 @@ Useful commands:
 | Command | Purpose |
 | --- | --- |
 | `npm run seed:demo` | Idempotent demo catalog, accounts, two sample collections and a delivered order (development database only) |
+| `npm run seed:demo:catalog` | Catalog expansion batch 1 on top of the base demo catalog: 44 more products, 2 categories, 4 brands, 6 collections, 2 coupons; insert-only (development database only; run `seed:demo` first) |
+| `npm run images:upload -- --dir <folder> --catalog all --dry-run` | Check the image folder for the base catalog and the catalog expansion (139 product images) without any network call |
 | `npm run demo:restock -- --dry-run` | Show how a refill of demo stock would change it, then run without the flag |
 | `npm run test:integration` | Needs `.env.test` and `ECOMMERCE_TEST_DB_PASSWORD` in the shell |
 | `npm run dev:db:down` | Stop the local database container (keeps the data) |
@@ -290,9 +292,10 @@ with `/health` as its health check) and **Vercel** (the storefront).
   Before each deploy that contains one, an operator runs
   `npm run migration:run:prod` against Neon, and only then triggers the matching
   manual Render deploy (automatic deploys are switched off).
-- **Seeds are manual too:** `npm run seed:demo:production` and
-  `npm run demo:restock:production` run from a trusted checkout and need
-  `PRODUCTION_DEMO_SEED_CONFIRM` and `PRODUCTION_DEMO_SEED_DATABASE`.
+- **Seeds are manual too:** `npm run seed:demo:production`,
+  `npm run seed:demo:catalog:production` and `npm run demo:restock:production`
+  run from a trusted checkout and need `PRODUCTION_DEMO_SEED_CONFIRM` and
+  `PRODUCTION_DEMO_SEED_DATABASE`.
 - **Demo payments** are switched on with `PAYMENT_PROVIDER=demo` on Render (and a
   redeploy). Any other value than `momo` or `demo` stops the application at
   start-up.
