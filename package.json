@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -29,8 +29,9 @@
     "dev:setup": "ts-node src/database/dev-setup/dev-setup.runner.ts setup",
     "dev:db:up": "ts-node src/database/dev-setup/dev-setup.runner.ts up",
     "dev:db:down": "ts-node src/database/dev-setup/dev-setup.runner.ts down",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings=0",
-    "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "loadtest:concurrency": "npm run build && ts-node -P tsconfig.json scripts/loadtest/concurrency-check.ts",
+    "lint": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\" --max-warnings=0",
+    "lint:fix": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -107,6 +108,10 @@
       "ts"
     ],
     "rootDir": "src",
+    "roots": [
+      "<rootDir>",
+      "<rootDir>/../scripts"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"

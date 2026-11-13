@@ -276,6 +276,7 @@ Useful commands:
 | `npm run images:upload -- --dir <folder> --catalog all --dry-run` | Check the image folder for the base catalog and the catalog expansion (139 product images) without any network call |
 | `npm run demo:restock -- --dry-run` | Show how a refill of demo stock would change it, then run without the flag |
 | `npm run test:integration` | Needs `.env.test` and `ECOMMERCE_TEST_DB_PASSWORD` in the shell |
+| `npm run loadtest:concurrency` | Concurrency check of ordering and payments (200 customers racing for 10 units, opposite lock orders, repeated payment requests, late completions); results in [docs/load-test-results.md](./docs/load-test-results.md), how to run it in [docs/concurrency-check.md](./docs/concurrency-check.md). Isolated test database only; not part of CI |
 | `npm run dev:db:down` | Stop the local database container (keeps the data) |
 
 More detail: [docs/local-development.md](./docs/local-development.md) (setup and
