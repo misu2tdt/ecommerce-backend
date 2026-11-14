@@ -64,10 +64,11 @@ export class AdminPaymentReconciliationController {
   @ApiOperation({
     summary: 'List payment events that need manual reconciliation',
     description:
-      'ADMIN only. Events a provider callback could not apply cleanly, such as a success after the Order was cancelled. Newest first; unresolved by default.',
+      'ADMIN only. Events a provider callback could not apply cleanly, such as a success after the Order was cancelled. Newest first; unresolved by default. `orderId` narrows the list to one Order and works together with `status`, `page` and `limit`; an unknown Order gives an empty list.',
   })
   @ApiBadRequestResponse({
-    description: 'Invalid page, limit (max 100) or status.',
+    description:
+      'Invalid page, limit (max 100), status or orderId (a whole number from 1).',
   })
   @ApiOkResponse({
     schema: {

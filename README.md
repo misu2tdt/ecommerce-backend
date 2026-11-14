@@ -219,8 +219,8 @@ numbers, their reasons and the limits of the design are in
 
 | Suite | Command | Count (latest run) | What it covers |
 | --- | --- | --- | --- |
-| Unit | `npm test` | 475 tests, 51 suites | Pure logic, guards, DTO validation, services with mocks |
-| Integration | `npm run test:integration` | 234 tests, 28 suites | Real PostgreSQL: checkout and stock, payments and reconciliation, expiry, migrations, seeds, rate limiting, pagination |
+| Unit | `npm test` | 711 tests, 63 suites | Pure logic, guards, DTO validation, services with mocks |
+| Integration | `npm run test:integration` | 363 tests, 33 suites | Real PostgreSQL: checkout and stock, payments and reconciliation, expiry, migrations, seeds, rate limiting, pagination |
 | Database safety | `npm run test:database-safety` | 7 tests | The guards that keep tests off any other database |
 | End to end | `npm run test:e2e` | 1 test | The application boots and answers |
 

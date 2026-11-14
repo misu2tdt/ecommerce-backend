@@ -17,7 +17,7 @@ export class PaymentReconciliationService {
   constructor(private readonly dataSource: DataSource) {}
 
   async list(query: ReconciliationQueryDto) {
-    const { page, limit, status } = query;
+    const { page, limit, status, orderId } = query;
     const builder = this.eventsWithContext().where(
       'event.processingStatus = :processingStatus',
       {
@@ -28,6 +28,8 @@ export class PaymentReconciliationService {
       builder.andWhere('event.resolvedAt IS NULL');
     if (status === ReconciliationStatusFilter.RESOLVED)
       builder.andWhere('event.resolvedAt IS NOT NULL');
+    if (orderId !== undefined)
+      builder.andWhere('payment.orderId = :orderId', { orderId });
 
     const [events, total] = await builder
       .orderBy('event.createdAt', 'DESC')

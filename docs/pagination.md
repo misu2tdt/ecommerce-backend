@@ -28,7 +28,9 @@ written before it existed keep working unchanged.
 | `GET /admin/collections` | 20 | 100 | `sortOrder`, then `id` |
 
 `GET /admin/payments/reconciliation` was already paginated with its own body
-(`{ items, page, limit, total }`) and keeps that shape.
+(`{ items, page, limit, total }`) and keeps that shape. It also takes an optional
+`orderId` filter (see [payments](./payments.md#for-admins)); `total` counts the
+filtered events.
 
 The other lists (categories, brands, a user's addresses, wishlist, and the
 payments of one order) are small by nature and stay unpaged. The public reviews

@@ -112,7 +112,7 @@ export async function listWithPaging<T>(
 
 // Only plain digits count as a number: "1e1", "0x10", "1.5", " 2", "" and
 // repeated parameters become NaN, which the integer check then rejects.
-const WholeNumber = () =>
+export const WholeNumber = () =>
   Transform(({ value }: { value: unknown }) => {
     if (value === undefined || value === null) return undefined;
     if (typeof value === 'number') return value;

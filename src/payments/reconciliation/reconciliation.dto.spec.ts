@@ -46,6 +46,56 @@ describe('ReconciliationQueryDto', () => {
   });
 });
 
+describe('ReconciliationQueryDto orderId', () => {
+  it('is optional', async () => {
+    const { dto, errors } = await checkQuery({});
+
+    expect(errors).toHaveLength(0);
+    expect(dto.orderId).toBeUndefined();
+  });
+
+  it('converts a whole number and works with the other filters', async () => {
+    const { dto, errors } = await checkQuery({
+      orderId: '42',
+      status: 'all',
+      page: '2',
+      limit: '5',
+    });
+
+    expect(errors).toHaveLength(0);
+    expect(dto).toMatchObject({
+      orderId: 42,
+      status: 'all',
+      page: 2,
+      limit: 5,
+    });
+  });
+
+  it('accepts the largest PostgreSQL integer', async () => {
+    const { dto, errors } = await checkQuery({ orderId: '2147483647' });
+
+    expect(errors).toHaveLength(0);
+    expect(dto.orderId).toBe(2_147_483_647);
+  });
+
+  it.each([
+    ['zero', '0'],
+    ['negative', '-1'],
+    ['decimal', '1.5'],
+    ['letters', 'abc'],
+    ['empty', ''],
+    ['exponent', '1e1'],
+    ['hexadecimal', '0x10'],
+    ['padded with a space', ' 2'],
+    ['above the PostgreSQL integer range', '2147483648'],
+    ['repeated', ['1', '2']],
+  ])('rejects an orderId that is %s', async (_label, orderId) => {
+    const { errors } = await checkQuery({ orderId });
+
+    expect(errors.some((error) => error.property === 'orderId')).toBe(true);
+  });
+});
+
 describe('ResolveReconciliationDto', () => {
   it('trims the note before validating and keeping it', async () => {
     const { dto, errors } = await checkResolve({

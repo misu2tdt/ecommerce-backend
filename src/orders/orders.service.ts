@@ -14,6 +14,7 @@ import { DEFAULT_ORDER_PAYMENT_WINDOW_MINUTES } from '../config/environment';
 import { addVndAmounts, multiplyVndAmount } from '../money/vnd-money';
 import { PaymentStatus } from '../payments/entities/payment-status.enum';
 import { Payment } from '../payments/entities/payment.entity';
+import { toPaymentView } from '../payments/payment-view';
 import { ProductStatus } from '../products/entities/product-status.enum';
 import { ProductVariant } from '../products/entities/product-variant.entity';
 import { Product } from '../products/entities/product.entity';
@@ -266,10 +267,20 @@ export class OrdersService {
     return { items: orders.map((order) => this.toOrderView(order)), total };
   }
 
+  // Any order, with its payment attempts (newest first) for the admin. The
+  // payments use the customer's payment view: no idempotency key, provider
+  // payment id or raw provider data. An order without payments has [].
   async findOneForAdmin(id: number) {
     const order = await this.loadOrder({ id });
     if (!order) throw new NotFoundException('Order not found');
-    return this.toOrderView(order);
+    const payments = await this.dataSource.getRepository(Payment).find({
+      where: { orderId: id },
+      order: { createdAt: 'DESC', id: 'DESC' },
+    });
+    return {
+      ...this.toOrderView(order),
+      payments: payments.map((payment) => toPaymentView(payment)),
+    };
   }
 
   cancelForUser(userId: number, id: number) {

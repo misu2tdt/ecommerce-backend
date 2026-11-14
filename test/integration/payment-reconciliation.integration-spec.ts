@@ -236,6 +236,154 @@ describe('Payment reconciliation for admins (PostgreSQL)', () => {
     );
   });
 
+  describe('filtering by order', () => {
+    it('lists only the events of that order, newest first, with every status filter and paging', async () => {
+      const target = await cancelledOrderWithPayment('order-filter-target');
+      const other = await cancelledOrderWithPayment('order-filter-other');
+      const base = Date.parse('2026-02-01T00:00:00Z');
+      const open: number[] = [];
+      for (let index = 0; index < 3; index += 1)
+        open.push(
+          await insertEvent(target.payment, {
+            createdAt: new Date(base + index * 60_000),
+          }),
+        );
+      const done: number[] = [];
+      for (let index = 3; index < 5; index += 1)
+        done.push(
+          await insertEvent(target.payment, {
+            resolvedBy: admin.id,
+            createdAt: new Date(base + index * 60_000),
+          }),
+        );
+      // Events of another order, and one that needed no review, never show.
+      const foreign = [
+        await insertEvent(other.payment, {}),
+        await insertEvent(other.payment, { resolvedBy: admin.id }),
+      ];
+      await insertEvent(target.payment, { processingStatus: 'processed' });
+      const orderQuery = `orderId=${target.order.id}`;
+
+      const unresolved = await getList(`?${orderQuery}`);
+      const resolved = await getList(`?${orderQuery}&status=resolved`);
+      const all = await getList(`?${orderQuery}&status=all`);
+
+      expect(unresolved.items.map((item) => item.id)).toEqual(
+        [...open].reverse(),
+      );
+      expect(unresolved).toMatchObject({ page: 1, limit: 20, total: 3 });
+      expect(resolved.items.map((item) => item.id)).toEqual(
+        [...done].reverse(),
+      );
+      expect(resolved.total).toBe(2);
+      expect(all.items.map((item) => item.id)).toEqual(
+        [...open, ...done].reverse(),
+      );
+      expect(all.total).toBe(5);
+      for (const body of [unresolved, resolved, all]) {
+        for (const item of body.items) {
+          expect(item.order.id).toBe(target.order.id);
+          expect(foreign).not.toContain(item.id);
+        }
+      }
+
+      // Paging counts only the filtered rows.
+      const firstPage = await getList(`?${orderQuery}&status=all&limit=2`);
+      const secondPage = await getList(
+        `?${orderQuery}&status=all&limit=2&page=2`,
+      );
+      const thirdPage = await getList(
+        `?${orderQuery}&status=all&limit=2&page=3`,
+      );
+      const pastTheEnd = await getList(
+        `?${orderQuery}&status=all&limit=2&page=4`,
+      );
+      const newestFirst = [...open, ...done].reverse();
+      expect(firstPage).toMatchObject({ page: 1, limit: 2, total: 5 });
+      expect(firstPage.items.map((item) => item.id)).toEqual(
+        newestFirst.slice(0, 2),
+      );
+      expect(secondPage.items.map((item) => item.id)).toEqual(
+        newestFirst.slice(2, 4),
+      );
+      expect(thirdPage.items.map((item) => item.id)).toEqual(
+        newestFirst.slice(4),
+      );
+      expect(pastTheEnd).toMatchObject({ page: 4, total: 5, items: [] });
+
+      // Without the filter nothing changed: both orders are listed.
+      expect((await getList('?status=all')).total).toBe(7);
+    });
+
+    it('includes the events of every payment attempt of the order', async () => {
+      const { order, payment } = await cancelledOrderWithPayment(
+        'order-filter-attempts',
+      );
+      const retry = await addPayment(order.id, 'order-filter-attempts-retry');
+      const first = await insertEvent(payment, {});
+      const second = await insertEvent(retry, {});
+
+      const body = await getList(`?orderId=${order.id}`);
+
+      expect(body.items.map((item) => item.id).sort()).toEqual(
+        [first, second].sort(),
+      );
+      expect(body.items.map((item) => item.payment.id).sort()).toEqual(
+        [payment.id, retry.id].sort(),
+      );
+    });
+
+    it.each([
+      ['an order that does not exist', 987_654],
+      ['the largest possible id', 2_147_483_647],
+    ])('answers an empty list for %s, not an error', async (_label, id) => {
+      await insertEvent(
+        (await cancelledOrderWithPayment('order-filter-unknown')).payment,
+        {},
+      );
+
+      const body = await getList(`?orderId=${id}&status=all`);
+
+      expect(body).toMatchObject({ items: [], page: 1, limit: 20, total: 0 });
+    });
+
+    it('answers an empty list for an order that has no events', async () => {
+      const { order } = await cancelledOrderWithPayment('order-filter-none');
+
+      expect(await getList(`?orderId=${order.id}&status=all`)).toMatchObject({
+        items: [],
+        total: 0,
+      });
+    });
+
+    it.each([
+      'orderId=abc',
+      'orderId=0',
+      'orderId=-1',
+      'orderId=1.5',
+      'orderId=',
+      'orderId=1e1',
+      'orderId=0x10',
+      'orderId=2147483648',
+      'orderId=1&orderId=2',
+    ])('rejects %s with 400', async (query) => {
+      const response = await request(app.getHttpServer())
+        .get(`${LIST}?${query}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(400);
+
+      expect(JSON.stringify(response.body)).toContain('orderId');
+    });
+
+    it('keeps the access rules: 401 without a token, 403 for a non-admin', async () => {
+      await request(app.getHttpServer()).get(`${LIST}?orderId=1`).expect(401);
+      await request(app.getHttpServer())
+        .get(`${LIST}?orderId=1`)
+        .set('Authorization', `Bearer ${customerToken}`)
+        .expect(403);
+    });
+  });
+
   describe('resolving', () => {
     it('records who handled it, once, without changing the order, payment or stock', async () => {
       const { payment, order, variantId } =
@@ -449,6 +597,20 @@ describe('Payment reconciliation for admins (PostgreSQL)', () => {
       .getRepository(Payment)
       .findOneByOrFail({ id: rows[0].id });
     return { order, variantId, payment };
+  }
+
+  // A further payment attempt of an order whose first attempt ended (cancelled).
+  async function addPayment(orderId: number, suffix: string) {
+    const rows = await dataSource.query<{ id: number }[]>(
+      `INSERT INTO "payments"
+         ("orderId", "provider", "providerPaymentId", "idempotencyKey", "amount", "currency", "status")
+       VALUES ($1, 'fake', $2, $3, 400000, 'VND', 'cancelled')
+       RETURNING "id"`,
+      [orderId, `fake_payment_${suffix}`, `reconciliation-${suffix}`],
+    );
+    return dataSource
+      .getRepository(Payment)
+      .findOneByOrFail({ id: rows[0].id });
   }
 
   async function insertEvent(

@@ -341,6 +341,103 @@ describe('OrdersService lifecycle', () => {
     }
   });
 
+  describe('admin order detail payments', () => {
+    const at = (iso: string) => new Date(iso);
+    function payment(id: number, overrides: Partial<Payment> = {}): Payment {
+      return {
+        id,
+        orderId: 3,
+        provider: 'momo',
+        providerPaymentId: `PAY${id}-secret-provider-id`,
+        idempotencyKey: `idempotency-key-${id}`,
+        amount: 400_000,
+        currency: 'VND',
+        status: PaymentStatus.CANCELLED,
+        failureCode: 'SOME_CODE',
+        failureMessage: 'Some message',
+        createdAt: at('2026-10-28T09:00:00.000Z'),
+        updatedAt: at('2026-10-28T09:10:00.000Z'),
+        succeededAt: null,
+        ...overrides,
+      } as Payment;
+    }
+
+    it('adds the payments of the order, asked newest first, in the safe view', async () => {
+      orderRepo.findOne.mockResolvedValue(order());
+      paymentRepo.find.mockResolvedValue([
+        payment(12, {
+          status: PaymentStatus.SUCCEEDED,
+          succeededAt: at('2026-10-28T10:00:00.000Z'),
+        }),
+        payment(11),
+      ]);
+
+      const view = await service.findOneForAdmin(3);
+
+      expect(paymentRepo.find).toHaveBeenCalledWith({
+        where: { orderId: 3 },
+        order: { createdAt: 'DESC', id: 'DESC' },
+      });
+      expect(view.payments).toEqual([
+        {
+          id: 12,
+          provider: 'momo',
+          amount: 400_000,
+          currency: 'VND',
+          status: 'succeeded',
+          createdAt: at('2026-10-28T09:00:00.000Z'),
+          updatedAt: at('2026-10-28T09:10:00.000Z'),
+          succeededAt: at('2026-10-28T10:00:00.000Z'),
+        },
+        expect.objectContaining({
+          id: 11,
+          status: 'cancelled',
+          succeededAt: null,
+        }),
+      ]);
+      const text = JSON.stringify(view.payments);
+      expect(text).not.toContain('idempotency');
+      expect(text).not.toContain('secret-provider-id');
+      expect(text).not.toContain('providerPaymentId');
+    });
+
+    it('gives an empty array for an order without payments', async () => {
+      orderRepo.findOne.mockResolvedValue(order());
+      paymentRepo.find.mockResolvedValue([]);
+
+      await expect(service.findOneForAdmin(3)).resolves.toEqual(
+        expect.objectContaining({ id: 3, payments: [] }),
+      );
+    });
+
+    it('keeps every field the order view already had', async () => {
+      orderRepo.findOne.mockResolvedValue(order());
+      paymentRepo.find.mockResolvedValue([]);
+
+      const forAdmin = await service.findOneForAdmin(3);
+      const forUser = await service.findOneForUser(7, 3);
+
+      const { payments, ...withoutPayments } = forAdmin;
+      expect(payments).toEqual([]);
+      expect(withoutPayments).toEqual(forUser);
+    });
+
+    it('does not add payments to the customer view', async () => {
+      orderRepo.findOne.mockResolvedValue(order());
+
+      expect(await service.findOneForUser(7, 3)).not.toHaveProperty('payments');
+    });
+
+    it('answers 404 for an unknown order without reading payments', async () => {
+      orderRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.findOneForAdmin(99)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(paymentRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
   function repository(entity: unknown) {
     if (entity === Address) return addressRepo;
     if (entity === ProductVariant) return variantRepo;

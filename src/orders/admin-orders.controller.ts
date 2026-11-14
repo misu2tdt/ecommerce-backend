@@ -13,6 +13,7 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -80,7 +81,34 @@ export class AdminOrdersController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get any Order', description: 'ADMIN only.' })
+  @ApiOperation({
+    summary: 'Get any Order',
+    description:
+      'ADMIN only. The Order as in the list, plus `payments`: its Payment attempts, newest first, in the same safe view the customer gets (no idempotency key, provider payment id or raw provider data). `payments` is an empty array for an Order that was never paid for.',
+  })
+  @ApiNotFoundResponse({ description: 'Order not found.' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        id: 7,
+        userId: 3,
+        status: 'cancelled',
+        totalPrice: 24990000,
+        payments: [
+          {
+            id: 42,
+            provider: 'momo',
+            amount: 24990000,
+            currency: 'VND',
+            status: 'cancelled',
+            createdAt: '2026-10-28T09:00:00.000Z',
+            updatedAt: '2026-10-28T09:20:00.000Z',
+            succeededAt: null,
+          },
+        ],
+      },
+    },
+  })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.ordersService.findOneForAdmin(id);
   }

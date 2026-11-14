@@ -97,6 +97,62 @@ Rules:
 `cancel` is stored as a `failed` event flagged as cancelled, so the existing
 `payment_events` constraint is unchanged and no migration is needed.
 
+## For admins
+
+Both endpoints need the ADMIN role (`401` without a token, `403` for anyone
+else).
+
+### Payments of an order: `GET /admin/orders/:id`
+
+The order exactly as before (every existing field is unchanged), plus
+`payments`: the order's payment attempts, **newest first** (by creation time,
+then id). It is the same safe view a customer gets from
+`GET /orders/:orderId/payments`, so it never holds the idempotency key, the
+provider's payment id, raw provider data or any secret. An order that was never
+paid for has `"payments": []`. An unknown order is `404`, an id that is not a
+number is `400`. Only this endpoint has `payments`; the order lists, the
+customer's order and the status change answer as before.
+
+```json
+{
+  "id": 7,
+  "userId": 3,
+  "status": "cancelled",
+  "totalPrice": 24990000,
+  "items": ["..."],
+  "payments": [
+    {
+      "id": 42,
+      "provider": "momo",
+      "amount": 24990000,
+      "currency": "VND",
+      "status": "cancelled",
+      "createdAt": "2026-10-28T09:00:00.000Z",
+      "updatedAt": "2026-10-28T09:20:00.000Z",
+      "succeededAt": null
+    }
+  ]
+}
+```
+
+The view has no failure code or message, because the customer's view has none.
+
+### Reconciliation queue: `GET /admin/payments/reconciliation`
+
+Payment events the system could not apply cleanly (a success after the order was
+cancelled, a failure after a success), newest first. The body is
+`{ items, page, limit, total }`.
+
+| Query | Meaning |
+| --- | --- |
+| `status` | `unresolved` (default), `resolved` or `all` |
+| `page`, `limit` | From 1; `limit` 20 by default, at most 100 (more is `400`, not clamped) |
+| `orderId` | Only the events of this order (all its payment attempts). A whole number from 1 to 2147483647; anything else is `400`. An order that does not exist, or has no events, gives `{ "items": [], "total": 0, ... }`, not an error. Works together with `status`, `page` and `limit`, and `total` counts only the filtered events. |
+
+`POST /admin/payments/reconciliation/:eventId/resolve` with `{ "note": "..." }`
+(3 to 500 characters after trimming) records who handled an event, when, and the
+note. It changes no order, payment or stock.
+
 ## Seed data
 
 The demo seed gives the seeded delivered order one succeeded `demo` payment for

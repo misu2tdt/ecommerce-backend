@@ -18,6 +18,7 @@ import { PaymentStatus } from './entities/payment-status.enum';
 import { ACTIVE_PAYMENT_INDEX, Payment } from './entities/payment.entity';
 import { ProviderPaymentEvent } from './payment-event';
 import { PaymentProvider } from './payment-provider';
+import { toPaymentView, type PaymentContinuation } from './payment-view';
 import { PaymentProviderAmbiguousError } from './provider-errors';
 import { PAYMENT_CURRENCY } from './payments.constants';
 import { MOMO_PROVIDER } from './momo/momo.constants';
@@ -446,28 +447,7 @@ export class PaymentsService {
     );
   }
 
-  toPaymentView(
-    payment: Payment,
-    continuation?: {
-      checkoutUrl?: string;
-      clientData?: Record<string, string>;
-    },
-  ) {
-    return {
-      id: payment.id,
-      provider: payment.provider,
-      amount: payment.amount,
-      currency: payment.currency,
-      status: payment.status,
-      createdAt: payment.createdAt,
-      updatedAt: payment.updatedAt,
-      succeededAt: payment.succeededAt,
-      ...(continuation?.checkoutUrl
-        ? { checkoutUrl: continuation.checkoutUrl }
-        : {}),
-      ...(continuation?.clientData
-        ? { clientData: continuation.clientData }
-        : {}),
-    };
+  toPaymentView(payment: Payment, continuation?: PaymentContinuation) {
+    return toPaymentView(payment, continuation);
   }
 }
