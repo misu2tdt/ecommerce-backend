@@ -19,12 +19,25 @@ import {
   messageOf,
   runBurst,
   shuffle,
-  sleep,
   warmUpConnections,
   type ApiResponse,
   type Classifier,
   type PlannedRequest,
 } from './http';
+import {
+  DEMO_OUTCOMES,
+  answersMatchEvent,
+  classifyCancelAnswer,
+  demoEventId,
+  distinctOutcomes,
+  eventsMatchPayment,
+  expectedOrderStatus,
+  isTerminalPaymentStatus,
+  oneCancelWon,
+  outcomeForAttempt,
+  type DemoOutcomeName,
+  type EventStatus,
+} from './outcomes';
 import { tally, type Burst, type Check } from './report';
 
 export interface ScenarioContext {
@@ -51,7 +64,8 @@ export interface ScenarioDefinition {
 
 const SETUP_CONCURRENCY = 25;
 const PLENTY_OF_STOCK = 1000;
-const CANCEL_HEAD_START_MS = 15;
+// Parallel cancels sent for each order in scenario 5, cancel-first group.
+const CANCELS_PER_ORDER = 3;
 
 // Setup helpers
 
@@ -183,27 +197,49 @@ function completion(allowed: readonly string[]): Classifier {
   };
 }
 
+// The documented answers to a cancel: it worked, the order is paid, or the
+// order is already cancelled. Each scenario checks which of them it expects.
 const cancellation: Classifier = (response) => {
-  if (isOk(response)) return { kind: 'success', tag: 'cancelled' };
-  if (
-    response.status === 409 &&
-    /paid order cannot be cancelled/i.test(messageOf(response))
-  ) {
-    return { kind: 'expected_refusal', tag: 'cancel refused: paid' };
-  }
-  return { kind: 'unexpected' };
+  const answer = classifyCancelAnswer(response.status, messageOf(response));
+  if (answer === 'cancelled') return { kind: 'success', tag: 'cancelled' };
+  if (answer === 'other') return { kind: 'unexpected' };
+  return { kind: 'expected_refusal', tag: `cancel ${answer}` };
 };
+
+const ANY_COMPLETION = completion([
+  'applied',
+  'already_applied',
+  'recorded_for_review',
+]);
+
+function cancelAnswer(response: ApiResponse) {
+  return classifyCancelAnswer(response.status, messageOf(response));
+}
+
+function cancelRequest(
+  context: ScenarioContext,
+  item: OrderWithPayment,
+): PlannedRequest {
+  return {
+    send: () =>
+      context.api.request('POST', `/orders/${item.orderId}/cancel`, {
+        token: item.user.token,
+      }),
+    classify: cancellation,
+  };
+}
 
 function completeRequest(
   context: ScenarioContext,
   item: OrderWithPayment,
   classify: Classifier,
+  outcome: DemoOutcomeName = 'success',
 ): PlannedRequest {
   return {
     send: () =>
       context.api.request('POST', `/payments/${item.paymentId}/demo/complete`, {
         token: item.user.token,
-        body: { outcome: 'success' },
+        body: { outcome },
       }),
     classify,
   };
@@ -266,6 +302,24 @@ function eventRows(ds: DataSource, paymentIds: number[]): Promise<EventRow[]> {
             count(*) FILTER (WHERE "processingStatus" = 'processed')::int AS "processed",
             count(*) FILTER (WHERE "processingStatus" = 'requires_reconciliation')::int AS "reconciliation"
      FROM "payment_events" WHERE "paymentId" = ANY($1::int[]) GROUP BY "paymentId"`,
+    [paymentIds],
+  );
+}
+
+interface EventDetail {
+  paymentId: number;
+  providerEventId: string;
+  processingStatus: string;
+}
+
+function eventDetails(
+  ds: DataSource,
+  paymentIds: number[],
+): Promise<EventDetail[]> {
+  return rows<EventDetail>(
+    ds,
+    `SELECT "paymentId", "providerEventId", "processingStatus"
+     FROM "payment_events" WHERE "paymentId" = ANY($1::int[]) ORDER BY "id"`,
     [paymentIds],
   );
 }
@@ -597,13 +651,13 @@ const paymentIdempotency: ScenarioDefinition = {
   },
 };
 
-// 4. Duplicate completion
+// 4. Concurrent payment events
 
 const duplicateCompletion: ScenarioDefinition = {
   id: 4,
-  title: 'Duplicate completion',
+  title: 'Concurrent payment events',
   proves:
-    'The same demo payment is completed many times in parallel (a double click, a retry, a replayed callback). The order is confirmed exactly once: one request reports "applied", all others "already_applied".',
+    'Several different events reach the same demo payment at the same moment (success, failure and cancel, each repeated: a double click, a retry, a replayed callback). Whichever wins the payment lock decides the final state; the others are recorded for review or ignored. The payment ends in exactly one terminal state, the order matches it, and every event id is stored once.',
   async run(context) {
     const { orders: orderCount, parallel } = context.options;
     const variantId = await context.fixtures.createVariant(
@@ -618,103 +672,276 @@ const duplicateCompletion: ScenarioDefinition = {
     );
     const stockBefore = await variantStock(context.ds, variantId);
 
-    await warmUpConnections(context.api, orderCount * parallel);
-    const { burst, responses } = await runBurst(
-      `${orderCount} payments x ${parallel} completions`,
-      items.flatMap((item) =>
-        Array.from({ length: parallel }, () =>
-          completeRequest(
-            context,
-            item,
-            completion(['applied', 'already_applied']),
-          ),
-        ),
+    interface Planned {
+      itemIndex: number;
+      outcome: DemoOutcomeName;
+      request: PlannedRequest;
+    }
+    // The outcome rotates over the parallel requests of a payment, so one
+    // payment gets success, failure and cancel (three different event ids) at
+    // once, each of them several times.
+    const planned: Planned[] = shuffle(
+      items.flatMap((item, itemIndex) =>
+        Array.from({ length: parallel }, (_, attempt): Planned => {
+          const outcome = outcomeForAttempt(attempt);
+          return {
+            itemIndex,
+            outcome,
+            request: completeRequest(context, item, ANY_COMPLETION, outcome),
+          };
+        }),
       ),
     );
 
-    let exactlyOnce = 0;
-    items.forEach((_, index) => {
-      const answers = responses.slice(index * parallel, (index + 1) * parallel);
-      const results = answers.map((answer) => fieldOf(answer, 'result'));
-      if (
-        results.filter((result) => result === 'applied').length === 1 &&
-        results.filter((result) => result === 'already_applied').length ===
-          parallel - 1
-      ) {
-        exactlyOnce += 1;
-      }
-    });
+    await warmUpConnections(context.api, planned.length);
+    const { burst, responses } = await runBurst(
+      `${orderCount} payments x ${parallel} completions, success / failure / cancel mixed`,
+      planned.map((entry) => entry.request),
+    );
 
     const orderIds = items.map((item) => item.orderId);
     const paymentIds = items.map((item) => item.paymentId);
     const statuses = await orderStatuses(context.ds, orderIds);
     const payments = await paymentRows(context.ds, orderIds);
-    const events = await eventRows(context.ds, paymentIds);
-    const confirmed = orderIds.filter(
-      (id) => statuses.get(id) === 'confirmed',
-    ).length;
-    const succeeded = orderIds.filter((id) => {
-      const stored = payments.filter((row) => row.orderId === id);
-      return stored.length === 1 && stored[0].status === 'succeeded';
-    }).length;
-    const oneEvent = events.filter(
-      (event) => event.total === 1 && event.processed === 1,
-    ).length;
+    const events = await eventDetails(context.ds, paymentIds);
+    const sentOutcomes = distinctOutcomes(parallel);
+
+    let terminalAndMatching = 0;
+    let eventIdsStoredOnce = 0;
+    let eventsAgree = 0;
+    let answersAgree = 0;
+    const finalStates = new Map<string, number>();
+    items.forEach((item, itemIndex) => {
+      const stored = payments.filter((row) => row.orderId === item.orderId);
+      const status = stored.length === 1 ? stored[0].status : undefined;
+      if (status !== undefined) {
+        finalStates.set(status, (finalStates.get(status) ?? 0) + 1);
+      }
+      if (
+        status !== undefined &&
+        isTerminalPaymentStatus(status) &&
+        statuses.get(item.orderId) === expectedOrderStatus(status)
+      ) {
+        terminalAndMatching += 1;
+      }
+
+      const own = events.filter((event) => event.paymentId === item.paymentId);
+      const expectedIds = sentOutcomes.map((outcome) =>
+        demoEventId(item.paymentId, outcome),
+      );
+      if (
+        own.length === expectedIds.length &&
+        expectedIds.every((id) =>
+          own.some((event) => event.providerEventId === id),
+        )
+      ) {
+        eventIdsStoredOnce += 1;
+      }
+
+      const byOutcome = new Map<DemoOutcomeName, EventStatus>();
+      for (const outcome of sentOutcomes) {
+        const found = own.find(
+          (event) =>
+            event.providerEventId === demoEventId(item.paymentId, outcome),
+        );
+        if (
+          found?.processingStatus === 'processed' ||
+          found?.processingStatus === 'requires_reconciliation'
+        ) {
+          byOutcome.set(outcome, found.processingStatus);
+        }
+      }
+      if (
+        byOutcome.size === sentOutcomes.length &&
+        eventsMatchPayment(status, byOutcome)
+      ) {
+        eventsAgree += 1;
+      }
+
+      if (
+        sentOutcomes.every((outcome) =>
+          answersMatchEvent(
+            responses
+              .filter(
+                (_, index) =>
+                  planned[index].itemIndex === itemIndex &&
+                  planned[index].outcome === outcome,
+              )
+              .map((answer) => fieldOf(answer, 'result')),
+            byOutcome.get(outcome),
+          ),
+        )
+      ) {
+        answersAgree += 1;
+      }
+    });
     const stockAfter = await variantStock(context.ds, variantId);
+    const split =
+      [...finalStates]
+        .sort(([first], [second]) => first.localeCompare(second))
+        .map(([status, count]) => `${status} ${count}`)
+        .join(', ') || 'none';
 
     return {
       bursts: [burst],
       checks: [
         check(
-          `One "applied" and ${parallel - 1} "already_applied" per payment`,
-          exactlyOnce === orderCount,
-          `${ratio(exactlyOnce, orderCount)} payments (${describeTally(burst)})`,
+          'Every order has one payment in one terminal state, and the order matches it',
+          terminalAndMatching === orderCount,
+          `${ratio(terminalAndMatching, orderCount)} payments (final states: ${split})`,
         ),
         check(
-          'Every order is confirmed',
-          confirmed === orderCount,
-          `${ratio(confirmed, orderCount)} orders`,
+          `Exactly one stored event per distinct event id sent (${sentOutcomes.length} per payment)`,
+          eventIdsStoredOnce === orderCount &&
+            events.length === orderCount * sentOutcomes.length,
+          `${ratio(eventIdsStoredOnce, orderCount)} payments, ${events.length} events stored`,
         ),
         check(
-          'Every order has exactly one payment, and it succeeded',
-          succeeded === orderCount,
-          `${ratio(succeeded, orderCount)} orders`,
+          'The stored events agree with the final state (the first event to win the lock decides)',
+          eventsAgree === orderCount,
+          `${ratio(eventsAgree, orderCount)} payments`,
         ),
         check(
-          'Exactly one processed payment event per payment',
-          oneEvent === orderCount && events.length === orderCount,
-          `${ratio(oneEvent, orderCount)} payments`,
+          'Answers per event id: one "applied" and the rest "already_applied", or all "recorded_for_review"',
+          answersAgree === orderCount,
+          `${ratio(answersAgree, orderCount)} payments (${describeTally(burst)})`,
         ),
         check(
-          'Confirming did not change stock',
+          'Completing did not change stock',
           stockAfter === stockBefore,
           `stock ${stockBefore} before, ${stockAfter} after`,
         ),
       ],
-      notes: [],
+      notes: [
+        `Each payment received ${parallel} requests carrying ${sentOutcomes.length} different event ids (${DEMO_OUTCOMES.slice(0, sentOutcomes.length).join(', ')}, rotated); the same id is repeated ${Math.floor(parallel / DEMO_OUTCOMES.length)} to ${Math.ceil(parallel / DEMO_OUTCOMES.length)} times.`,
+        'Which event wins the payment lock first is not fixed and decides the final state: a success first confirms the order and later failures and cancels are recorded for review; anything else first leaves the order pending and the late success is recorded for review. The split of final states varies between runs; every split is correct.',
+      ],
     };
   },
 };
 
-// 5. Late completion after cancellation
+// 5. Cancellation against payment completion
 
 const lateCompletion: ScenarioDefinition = {
   id: 5,
-  title: 'Late completion after cancellation',
+  title: 'Cancellation against payment completion',
   proves:
-    'A payment is completed while its unpaid order is cancelled at the same moment, and again after the cancellation. A late success is recorded for review (requires reconciliation), never applied, and stock is returned once, never twice.',
+    'A payment is completed and its unpaid order cancelled in all three orders of arrival: the payment first (a paid order can not be cancelled), the cancel first (a late success is recorded for review, never applied) and both at the same moment. Stock is returned exactly once for a cancelled order, even when the cancel is repeated, and never for a paid one.',
   async run(context) {
     const { orders: orderCount, parallel } = context.options;
+    const paidVariant = await context.fixtures.createVariant(
+      'late-paid-first',
+      PLENTY_OF_STOCK,
+    );
+    const cancelVariant = await context.fixtures.createVariant(
+      'late-cancel-first',
+      PLENTY_OF_STOCK,
+    );
     const raceVariant = await context.fixtures.createVariant(
       'late-race',
       PLENTY_OF_STOCK,
     );
-    const lateVariant = await context.fixtures.createVariant(
-      'late-after',
-      PLENTY_OF_STOCK,
-    );
 
-    // 5a: one cancel and many completions for each order, at the same moment.
+    // 5a: the payment completes first, then a cancel arrives. Not a race: the
+    // completion is answered before the cancel is sent.
+    const paidItems = await ordersWithPayments(
+      context,
+      'paid-first',
+      orderCount,
+      paidVariant,
+    );
+    const stockBeforePaid = await variantStock(context.ds, paidVariant);
+    const firstCompletions = await mapLimit(
+      paidItems,
+      SETUP_CONCURRENCY,
+      async (item) =>
+        requireOk(
+          await completeRequest(context, item, ANY_COMPLETION).send(),
+          'complete payment',
+        ),
+    );
+    await warmUpConnections(context.api, orderCount);
+    const cancelAfterPayment = await runBurst(
+      `${orderCount} paid orders: cancel sent after the payment completed`,
+      paidItems.map((item) => cancelRequest(context, item)),
+    );
+    const paidOrderIds = paidItems.map((item) => item.orderId);
+    const paidStatuses = await orderStatuses(context.ds, paidOrderIds);
+    const paidPayments = await paymentRows(context.ds, paidOrderIds);
+    const paidEvents = await eventRows(
+      context.ds,
+      paidItems.map((item) => item.paymentId),
+    );
+    const stockAfterPaid = await variantStock(context.ds, paidVariant);
+    const paidFirstApplied = firstCompletions.filter(
+      (response) => fieldOf(response, 'result') === 'applied',
+    ).length;
+    const cancelRefusedPaid = cancelAfterPayment.responses.filter(
+      (response) => cancelAnswer(response) === 'refused: paid',
+    ).length;
+    const paidAndConfirmed = paidItems.filter((item) => {
+      const stored = paidPayments.filter((row) => row.orderId === item.orderId);
+      return (
+        paidStatuses.get(item.orderId) === 'confirmed' &&
+        stored.length === 1 &&
+        stored[0].status === 'succeeded'
+      );
+    }).length;
+    const paidOneEvent = paidEvents.filter(
+      (event) => event.total === 1 && event.processed === 1,
+    ).length;
+
+    // 5b: the cancel completes first (sent three times at once for each order),
+    // then the payment is completed many times.
+    const cancelItems = await ordersWithPayments(
+      context,
+      'cancel-first',
+      orderCount,
+      cancelVariant,
+    );
+    const stockBeforeCancel = await variantStock(context.ds, cancelVariant);
+    await warmUpConnections(context.api, orderCount * CANCELS_PER_ORDER);
+    const repeatedCancel = await runBurst(
+      `${orderCount} orders x ${CANCELS_PER_ORDER} cancels at once`,
+      cancelItems.flatMap((item) =>
+        Array.from({ length: CANCELS_PER_ORDER }, () =>
+          cancelRequest(context, item),
+        ),
+      ),
+    );
+    const stockAfterCancel = await variantStock(context.ds, cancelVariant);
+    const oneCancelPerOrder = cancelItems.filter((_, orderIndex) =>
+      oneCancelWon(
+        repeatedCancel.responses
+          .slice(
+            orderIndex * CANCELS_PER_ORDER,
+            (orderIndex + 1) * CANCELS_PER_ORDER,
+          )
+          .map(cancelAnswer),
+      ),
+    ).length;
+
+    await warmUpConnections(context.api, orderCount * parallel);
+    const lateAfterCancel = await runBurst(
+      `${orderCount} cancelled orders x ${parallel} late completions`,
+      cancelItems.flatMap((item) =>
+        Array.from({ length: parallel }, () =>
+          completeRequest(context, item, completion(['recorded_for_review'])),
+        ),
+      ),
+    );
+    const cancelOrderIds = cancelItems.map((item) => item.orderId);
+    const cancelStatuses = await orderStatuses(context.ds, cancelOrderIds);
+    const cancelPayments = await paymentRows(context.ds, cancelOrderIds);
+    const cancelEvents = await eventRows(
+      context.ds,
+      cancelItems.map((item) => item.paymentId),
+    );
+    const stockAfterLate = await variantStock(context.ds, cancelVariant);
+
+    // 5c: one cancel and many completions for each order at the same moment.
+    // Either side may win, so only the consistency of the outcome is asserted;
+    // the split of winners is reported.
     const raceItems = await ordersWithPayments(
       context,
       'race',
@@ -729,33 +956,13 @@ const lateCompletion: ScenarioDefinition = {
     }
     const planned: Planned[] = shuffle(
       raceItems.flatMap((item, orderIndex): Planned[] => [
-        {
-          orderIndex,
-          kind: 'cancel',
-          request: {
-            send: async () => {
-              // Every second cancel starts a few milliseconds late, so the
-              // race is run in both orders: cancel first and payment first.
-              if (orderIndex % 2 === 1) await sleep(CANCEL_HEAD_START_MS);
-              return context.api.request(
-                'POST',
-                `/orders/${item.orderId}/cancel`,
-                { token: item.user.token },
-              );
-            },
-            classify: cancellation,
-          },
-        },
+        { orderIndex, kind: 'cancel', request: cancelRequest(context, item) },
         ...Array.from(
           { length: parallel },
           (): Planned => ({
             orderIndex,
             kind: 'complete',
-            request: completeRequest(
-              context,
-              item,
-              completion(['applied', 'already_applied', 'recorded_for_review']),
-            ),
+            request: completeRequest(context, item, ANY_COMPLETION),
           }),
         ),
       ]),
@@ -780,7 +987,7 @@ const lateCompletion: ScenarioDefinition = {
       const answers = race.responses
         .map((response, index) => ({ response, entry: planned[index] }))
         .filter(({ entry }) => entry.orderIndex === orderIndex);
-      const cancelAnswer = answers.find(
+      const cancelResponse = answers.find(
         ({ entry }) => entry.kind === 'cancel',
       )?.response;
       const results = answers
@@ -789,8 +996,9 @@ const lateCompletion: ScenarioDefinition = {
       const status = raceStatuses.get(item.orderId);
       const payment = racePayments.find((row) => row.orderId === item.orderId);
       const event = raceEvents.find((row) => row.paymentId === item.paymentId);
+      const cancelOutcome = cancelResponse && cancelAnswer(cancelResponse);
 
-      if (cancelAnswer && isOk(cancelAnswer)) {
+      if (cancelOutcome === 'cancelled') {
         cancelWon += 1;
         if (
           status === 'cancelled' &&
@@ -801,7 +1009,7 @@ const lateCompletion: ScenarioDefinition = {
         ) {
           consistent += 1;
         }
-      } else if (cancelAnswer?.status === 409) {
+      } else if (cancelOutcome === 'refused: paid') {
         paymentWon += 1;
         if (
           status === 'confirmed' &&
@@ -821,47 +1029,66 @@ const lateCompletion: ScenarioDefinition = {
       (id) => raceStatuses.get(id) === 'confirmed',
     ).length;
 
-    // 5b: cancel first, complete afterwards.
-    const lateItems = await ordersWithPayments(
-      context,
-      'late',
-      orderCount,
-      lateVariant,
-    );
-    const stockBeforeLate = await variantStock(context.ds, lateVariant);
-    await mapLimit(lateItems, SETUP_CONCURRENCY, async (item) =>
-      requireOk(
-        await context.api.request('POST', `/orders/${item.orderId}/cancel`, {
-          token: item.user.token,
-        }),
-        'cancel order',
-      ),
-    );
-    const stockAfterCancel = await variantStock(context.ds, lateVariant);
-    await warmUpConnections(context.api, orderCount * parallel);
-    const late = await runBurst(
-      `${orderCount} cancelled orders x ${parallel} late completions`,
-      lateItems.flatMap((item) =>
-        Array.from({ length: parallel }, () =>
-          completeRequest(context, item, completion(['recorded_for_review'])),
-        ),
-      ),
-    );
-
-    const lateOrderIds = lateItems.map((item) => item.orderId);
-    const lateStatuses = await orderStatuses(context.ds, lateOrderIds);
-    const latePayments = await paymentRows(context.ds, lateOrderIds);
-    const lateEvents = await eventRows(
-      context.ds,
-      lateItems.map((item) => item.paymentId),
-    );
-    const stockAfterLate = await variantStock(context.ds, lateVariant);
-
     return {
-      bursts: [race.burst, late.burst],
+      bursts: [
+        cancelAfterPayment.burst,
+        repeatedCancel.burst,
+        lateAfterCancel.burst,
+        race.burst,
+      ],
       checks: [
         check(
-          'Race: every order ended in one consistent outcome',
+          'Payment first: the completion was applied and the order is confirmed',
+          paidFirstApplied === orderCount &&
+            paidAndConfirmed === orderCount &&
+            paidOneEvent === orderCount,
+          `${ratio(paidAndConfirmed, orderCount)} orders confirmed, ${paidFirstApplied} completions applied`,
+        ),
+        check(
+          'Payment first: the later cancel is refused because the order is paid',
+          cancelRefusedPaid === orderCount,
+          `${cancelRefusedPaid} of ${orderCount} refused (${describeTally(cancelAfterPayment.burst)})`,
+        ),
+        check(
+          'Payment first: no stock was returned',
+          stockAfterPaid === stockBeforePaid,
+          `stock ${stockBeforePaid} before, ${stockAfterPaid} after`,
+        ),
+        check(
+          `Cancel first: exactly one of ${CANCELS_PER_ORDER} cancels per order succeeded, the others were refused as already cancelled`,
+          oneCancelPerOrder === orderCount,
+          `${ratio(oneCancelPerOrder, orderCount)} orders (${describeTally(repeatedCancel.burst)})`,
+        ),
+        check(
+          'Cancel first: stock was returned once and equals the original',
+          stockAfterCancel === stockBeforeCancel + orderCount &&
+            stockAfterLate === stockAfterCancel,
+          `before orders ${stockBeforeCancel + orderCount}, after cancels ${stockAfterCancel}, after late completions ${stockAfterLate}`,
+        ),
+        check(
+          'Cancel first: every late completion is "recorded_for_review"',
+          countOf(lateAfterCancel.burst, 'success') === orderCount * parallel,
+          describeTally(lateAfterCancel.burst),
+        ),
+        check(
+          'Cancel first: orders and payments stay cancelled',
+          cancelOrderIds.every(
+            (id) => cancelStatuses.get(id) === 'cancelled',
+          ) &&
+            cancelPayments.length === orderCount &&
+            cancelPayments.every((row) => row.status === 'cancelled'),
+          `${cancelOrderIds.filter((id) => cancelStatuses.get(id) === 'cancelled').length} orders cancelled, ${cancelPayments.filter((row) => row.status === 'cancelled').length} payments cancelled`,
+        ),
+        check(
+          'Cancel first: one reconciliation event per payment',
+          cancelEvents.length === orderCount &&
+            cancelEvents.every(
+              (event) => event.total === 1 && event.reconciliation === 1,
+            ),
+          `${cancelEvents.filter((event) => event.total === 1 && event.reconciliation === 1).length} of ${orderCount} payments`,
+        ),
+        check(
+          'Race: every order ended in one consistent outcome (the winner is reported, not asserted)',
           consistent === orderCount,
           `${ratio(consistent, orderCount)} orders (cancel won ${cancelWon}, payment won ${paymentWon})`,
         ),
@@ -870,35 +1097,10 @@ const lateCompletion: ScenarioDefinition = {
           stockAfterRace === stockBeforeRace + (orderCount - confirmedInRace),
           `stock ${stockAfterRace}; before ${stockBeforeRace}, ${confirmedInRace} paid, ${orderCount - confirmedInRace} cancelled and returned once each`,
         ),
-        check(
-          'After cancel: every late completion is "recorded_for_review"',
-          countOf(late.burst, 'success') === orderCount * parallel,
-          describeTally(late.burst),
-        ),
-        check(
-          'After cancel: orders and payments stay cancelled',
-          lateOrderIds.every((id) => lateStatuses.get(id) === 'cancelled') &&
-            latePayments.length === orderCount &&
-            latePayments.every((row) => row.status === 'cancelled'),
-          `${lateOrderIds.filter((id) => lateStatuses.get(id) === 'cancelled').length} orders cancelled, ${latePayments.filter((row) => row.status === 'cancelled').length} payments cancelled`,
-        ),
-        check(
-          'After cancel: one reconciliation event per payment',
-          lateEvents.length === orderCount &&
-            lateEvents.every(
-              (event) => event.total === 1 && event.reconciliation === 1,
-            ),
-          `${lateEvents.filter((event) => event.total === 1 && event.reconciliation === 1).length} of ${orderCount} payments`,
-        ),
-        check(
-          'After cancel: stock was returned once and equals the original',
-          stockAfterCancel === stockBeforeLate + orderCount &&
-            stockAfterLate === stockAfterCancel,
-          `before orders ${stockBeforeLate + orderCount}, after cancel ${stockAfterCancel}, after late completions ${stockAfterLate}`,
-        ),
       ],
       notes: [
-        'In the race either side may win, and both outcomes are correct: the cancel wins (the late success is recorded for review) or the payment wins (the cancel is refused because the order is paid). A mixed outcome would fail the check. Every second cancel is held back 15 ms so that both orderings occur.',
+        `Who won, out of ${orderCount} orders in each group: payment first, the payment won ${paidAndConfirmed} (the cancel was refused ${cancelRefusedPaid}); cancel first, the cancel won ${oneCancelPerOrder} (late successes recorded for review); simultaneous race, the cancel won ${cancelWon} and the payment won ${paymentWon}.`,
+        'The first two groups fix the order of arrival by waiting for the first request to be answered before the next is sent, so both orders are always exercised. In the simultaneous race either side may win and both outcomes are correct (cancel wins: the late success is recorded for review; payment wins: the cancel is refused because the order is paid). A mixed outcome would fail the check.',
         'Order expiry is not exercised: the expiry job is off when NODE_ENV=test, and expiry cancels through the same function as a cancel.',
       ],
     };

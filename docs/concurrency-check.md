@@ -2,7 +2,7 @@
 
 A repeatable check that the ordering and payment guarantees hold when many
 requests arrive at the same moment, with numbers. It is a script, not a CI test:
-it takes about 20 seconds plus a build, writes real rows and starts the backend.
+it takes about 30 seconds plus a build, writes real rows and starts the backend.
 
 The latest figures are in [load-test-results.md](./load-test-results.md). They are
 local numbers from one laptop against an isolated test database, not a production
@@ -108,18 +108,78 @@ any deadlock and any error line in the backend's output.
    for one order give exactly one active payment and the rest are refused with
    `409 Order already has an active payment`. The payments table is checked
    directly.
-4. **Duplicate completion.** The same demo payment is completed many times in
-   parallel (`POST /payments/:id/demo/complete`). The order is confirmed once:
-   one answer is `applied`, the others `already_applied`; there is one payment
-   event, the payment is `succeeded` and stock did not change.
-5. **Late completion after cancellation.** (a) For each order, one cancel and
-   many completions race. Either side may win and both outcomes are valid: the
-   cancel wins and every completion is `recorded_for_review`, or the payment wins
-   and the cancel is refused with `409`. A mixed outcome fails. Every second cancel
-   is held back 15 ms so that both orderings occur. (b) Orders are cancelled
-   first, then completed in parallel: every completion must be
-   `recorded_for_review`, there is one `requires_reconciliation` event per payment
-   and stock is back to the original value exactly, never returned twice.
+4. **Concurrent payment events.** Each demo payment receives many parallel
+   completions (`POST /payments/:id/demo/complete`) with **different** events: the
+   outcome rotates success, failure, cancel across the requests, so one payment
+   gets three event ids (`demo:<paymentId>:<outcome>`) at once, each repeated
+   several times. Which event wins the payment lock is not fixed, so the check
+   does not assume a winner. Every answer must be `applied`, `already_applied` or
+   `recorded_for_review`, and then, per payment:
+   - the payment ends in exactly one terminal state (`succeeded`, `failed` or
+     `cancelled`) and the order matches it (`confirmed` after a success, still
+     `pending` otherwise);
+   - exactly one event is stored for each distinct event id sent (3 per payment),
+     no more and no fewer;
+   - the stored events agree with the final state: if the success won, it is
+     `processed` and the failure and cancel were recorded for review
+     (`requires_reconciliation`); otherwise the success was recorded for review
+     and the failure and cancel were `processed`;
+   - for each event id, the answers match how it was stored: one `applied` and the
+     rest `already_applied` for a processed event, all `recorded_for_review` for
+     one recorded for review;
+   - stock did not change.
+5. **Cancellation against payment completion.** The same payment and unpaid order
+   are run in three orders of arrival. The first two do not depend on timing: the
+   first request is answered before the second one is sent.
+   - *Payment first.* The completion is answered (`applied`, order `confirmed`),
+     then the cancel is sent and must be refused with `409` (a paid order can not
+     be cancelled). No stock is returned.
+   - *Cancel first.* Each order is cancelled by **three cancels at once**: exactly
+     one succeeds and the other two are refused with `400` ("Cannot transition
+     Order from cancelled to cancelled"), never a 5xx. Then the payment is
+     completed many times in parallel: every completion is
+     `recorded_for_review`, there is one `requires_reconciliation` event per
+     payment, the order and payment stay cancelled and stock is back to the
+     original value exactly, never returned twice.
+   - *Simultaneous.* For each order one cancel and many completions are sent at
+     the same moment. Either side may win and both outcomes are valid: the cancel
+     wins and every completion is `recorded_for_review`, or the payment wins and
+     the cancel is refused with `409`. The winner is **reported, not asserted**
+     (the results file prints the split); a mixed outcome fails, and stock must
+     equal the original minus the orders that were paid.
+
+## Sensitivity check
+
+A check that always passes proves nothing, so the check was tried against five
+deliberately broken versions of the backend. Each break was applied on its own to
+a throwaway copy of the repository (never to the real one), the check was run,
+and the copy was thrown away.
+
+| # | Break (in the copy) | Detected by | What the check showed |
+| --- | --- | --- | --- |
+| 1 | Remove the row lock on the variant in `OrdersService.checkoutPrepared` | Scenarios 1 and 2 | More orders succeeded than there were units (105 and 144 instead of 10) |
+| 2 | Remove the sorting of variant ids before locking (`normalizeItems`) | Scenario 2 | 5xx answers and deadlocks (184 of 200 requests) |
+| 3 | Insert the payment event before locking the payment row in `PaymentsService.processEvent` | Scenario 4 | 5xx answers and deadlocks, and a missing event. Needs the mixed outcomes of scenario 4: with one outcome repeated, every request carries the same event id and they only queue behind each other |
+| 4 | Remove the guard against returning stock twice when an order is cancelled (the `assertTransition` call in `cancel`) | Scenario 5, cancel-first group | More than one cancel succeeded for an order and stock came back as 1010 instead of 1000. Needs the repeated cancels |
+| 5 | Skip the application pre-check for "one active payment per order" in `PaymentsService.establishAttempt` | **Not detected, by design** | Still exactly one active payment per order |
+
+Break 5 is not caught because it should not be: it is caught by the database, not
+by application code. The partial unique index `UQ_payments_one_active_per_order`
+refuses a second active payment, and `establishAttempt` turns that into the same
+`409` ("Order already has an active payment") the pre-check gives. The pre-check
+only makes the common case cheaper and the message earlier. This is the reading of
+the code and of an unchanged result; the index was not dropped to prove it.
+
+Breaks 3 and 4 were first **not** detected by the earlier version of the check.
+Scenario 4 now sends different outcomes at once and scenario 5 sends repeated
+cancels, which is what finds them. Against the updated check, break 3 fails
+scenario 4 (16 of 100 requests answered 5xx, 16 deadlocks counted by PostgreSQL,
+14 of 15 events stored) and break 4 fails scenario 5 (0 of 5 orders with exactly
+one successful cancel, stock 1010 instead of 1000).
+
+This was run **once, by hand, in a throwaway copy**. It is not part of CI and not
+automated; repeat it by hand after changing the locking in `OrdersService` or
+`PaymentsService`.
 
 ## How the numbers are produced
 
@@ -161,7 +221,8 @@ moment late).
   that the samples can not show.
 - **Variation between runs.** Latency and throughput vary by up to about 20
   percent between runs on the same machine. Counts of successes and refusals do not vary;
-  in scenario 5a the split between "cancel won" and "payment won" does.
+  in scenario 4 the split of final payment states and in the simultaneous part of
+  scenario 5 the split between "cancel won" and "payment won" does.
 
 ## Files
 
@@ -169,8 +230,10 @@ moment late).
   the entry point.
 - [scenarios.ts](../scripts/loadtest/scenarios.ts): the five scenarios.
 - [guard.ts](../scripts/loadtest/guard.ts), [args.ts](../scripts/loadtest/args.ts),
-  [report.ts](../scripts/loadtest/report.ts): the safety guard, the command-line
-  options and the report; these have unit tests (`npm test`).
+  [report.ts](../scripts/loadtest/report.ts),
+  [outcomes.ts](../scripts/loadtest/outcomes.ts): the safety guard, the
+  command-line options, the report and the pure rules for mixed payment events
+  and repeated cancels; these have unit tests (`npm test`).
 - [backend.ts](../scripts/loadtest/backend.ts), [http.ts](../scripts/loadtest/http.ts),
   [database.ts](../scripts/loadtest/database.ts): starting the backend, sending
   requests together, fixtures, verification queries and clean-up.

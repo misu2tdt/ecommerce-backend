@@ -11,8 +11,8 @@ Result of the run: **PASS**
 
 | Item | Value |
 | --- | --- |
-| Date (UTC) | 2026-11-12T16:31:01.514Z |
-| Run time | 20.94 s |
+| Date (UTC) | 2026-11-13T15:36:55.938Z |
+| Run time | 29.81 s |
 | OS | Windows_NT 10.0.26200 (x64) |
 | CPU | 11th Gen Intel(R) Core(TM) i5-11400H @ 2.70GHz (12 logical CPUs) |
 | Memory | 16 GB |
@@ -24,11 +24,11 @@ Result of the run: **PASS**
 
 | # | Scenario | Result | Requests | Unexpected | 429 | Wall time |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Oversell | PASS | 200 | 0 | 0 | 1.06 s |
-| 2 | Deadlock safety | PASS | 200 | 0 | 0 | 1.32 s |
-| 3 | Payment idempotency | PASS | 200 | 0 | 0 | 1.13 s |
-| 4 | Duplicate completion | PASS | 100 | 0 | 0 | 656.9 ms |
-| 5 | Late completion after cancellation | PASS | 205 | 0 | 0 | 981.5 ms |
+| 1 | Oversell | PASS | 200 | 0 | 0 | 1.65 s |
+| 2 | Deadlock safety | PASS | 200 | 0 | 0 | 1.89 s |
+| 3 | Payment idempotency | PASS | 200 | 0 | 0 | 1.98 s |
+| 4 | Concurrent payment events | PASS | 100 | 0 | 0 | 925.1 ms |
+| 5 | Cancellation against payment completion | PASS | 225 | 0 | 0 | 2.25 s |
 
 ## 1. Oversell: PASS
 
@@ -36,14 +36,14 @@ Many customers check out the same scarce variant at the same moment through thei
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 200 carts check out together | 200 | 10 | 190 | 0 | 0 | 794.4 ms | 1.02 s | 1.06 s | 189.0/s |
+| 200 carts check out together | 200 | 10 | 190 | 0 | 0 | 1.13 s | 1.57 s | 1.65 s | 121.0/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
 | Exactly 10 orders succeeded | PASS | 10 succeeded |
 | The other 190 were refused with insufficient stock | PASS | 190 refused |
 | Final stock is 0 | PASS | stock 0 |
-| Stock was never negative at any sample | PASS | 48 samples, lowest seen 0 |
+| Stock was never negative at any sample | PASS | 73 samples, lowest seen 0 |
 | Ordered quantities add up to 10 | PASS | 10 orders, 10 units |
 | No unexpected responses | PASS | 0 unexpected of 200 requests |
 | No 429 (a 429 is a setup problem, not a pass) | PASS | 0 throttled |
@@ -59,7 +59,7 @@ Customers order the same two variants in opposite orders (A,B and B,A). The serv
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 200 orders of both variants, half A,B and half B,A | 200 | 10 | 190 | 0 | 0 | 886.6 ms | 1.26 s | 1.32 s | 151.6/s |
+| 200 orders of both variants, half A,B and half B,A | 200 | 10 | 190 | 0 | 0 | 1.22 s | 1.79 s | 1.89 s | 105.7/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
@@ -68,7 +68,7 @@ Customers order the same two variants in opposite orders (A,B and B,A). The serv
 | Stock of A matches the orders | PASS | stock 0, ordered 10 |
 | Stock of B matches the orders | PASS | stock 0, ordered 10 |
 | Both variants sold the same number of units | PASS | A 10, B 10, orders 10 |
-| Stock was never negative at any sample | PASS | 65 samples, lowest seen 0 |
+| Stock was never negative at any sample | PASS | 88 samples, lowest seen 0 |
 | No unexpected responses | PASS | 0 unexpected of 200 requests |
 | No 429 (a 429 is a setup problem, not a pass) | PASS | 0 throttled |
 | No 5xx responses | PASS | 0 server errors |
@@ -83,8 +83,8 @@ Parallel create-payment requests with the same Idempotency-Key produce one payme
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 orders x 20 requests, same key | 100 | 100 | 0 | 0 | 0 | 601.3 ms | 623.5 ms | 637.4 ms | 156.9/s |
-| 5 orders x 20 requests, different keys | 100 | 5 | 95 | 0 | 0 | 310.6 ms | 450.9 ms | 488.8 ms | 204.6/s |
+| 5 orders x 20 requests, same key | 100 | 100 | 0 | 0 | 0 | 1.04 s | 1.10 s | 1.14 s | 87.8/s |
+| 5 orders x 20 requests, different keys | 100 | 5 | 95 | 0 | 0 | 546.8 ms | 792.2 ms | 842.2 ms | 118.7/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
@@ -101,51 +101,61 @@ Parallel create-payment requests with the same Idempotency-Key produce one payme
 - With the same key the answers carry the same payment id, amount and currency. The status field can differ by a moment (pending or processing) because each request reads it at its own time.
 - Each burst uses fresh unpaid orders, one customer per order; only the way the Idempotency-Key is chosen differs between the two bursts.
 
-## 4. Duplicate completion: PASS
+## 4. Concurrent payment events: PASS
 
-The same demo payment is completed many times in parallel (a double click, a retry, a replayed callback). The order is confirmed exactly once: one request reports "applied", all others "already_applied".
+Several different events reach the same demo payment at the same moment (success, failure and cancel, each repeated: a double click, a retry, a replayed callback). Whichever wins the payment lock decides the final state; the others are recorded for review or ignored. The payment ends in exactly one terminal state, the order matches it, and every event id is stored once.
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 payments x 20 completions | 100 | 100 | 0 | 0 | 0 | 628.5 ms | 643.3 ms | 656.9 ms | 152.2/s |
+| 5 payments x 20 completions, success / failure / cancel mixed | 100 | 100 | 0 | 0 | 0 | 824.9 ms | 909.4 ms | 925.1 ms | 108.1/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
-| One "applied" and 19 "already_applied" per payment | PASS | 5 of 5 payments (already_applied 95, applied 5) |
-| Every order is confirmed | PASS | 5 of 5 orders |
-| Every order has exactly one payment, and it succeeded | PASS | 5 of 5 orders |
-| Exactly one processed payment event per payment | PASS | 5 of 5 payments |
-| Confirming did not change stock | PASS | stock 995 before, 995 after |
+| Every order has one payment in one terminal state, and the order matches it | PASS | 5 of 5 payments (final states: cancelled 4, succeeded 1) |
+| Exactly one stored event per distinct event id sent (3 per payment) | PASS | 5 of 5 payments, 15 events stored |
+| The stored events agree with the final state (the first event to win the lock decides) | PASS | 5 of 5 payments |
+| Answers per event id: one "applied" and the rest "already_applied", or all "recorded_for_review" | PASS | 5 of 5 payments (already_applied 50, applied 9, recorded_for_review 41) |
+| Completing did not change stock | PASS | stock 995 before, 995 after |
 | No unexpected responses | PASS | 0 unexpected of 100 requests |
 | No 429 (a 429 is a setup problem, not a pass) | PASS | 0 throttled |
 | No 5xx responses | PASS | 0 server errors |
 | No deadlock (40P01) in the backend output or in PostgreSQL | PASS | 0 in backend output, 0 counted by pg_stat_database |
 | The backend logged no errors | PASS | 0 error lines |
 
-## 5. Late completion after cancellation: PASS
+- Each payment received 20 requests carrying 3 different event ids (success, failure, cancel, rotated); the same id is repeated 6 to 7 times.
+- Which event wins the payment lock first is not fixed and decides the final state: a success first confirms the order and later failures and cancels are recorded for review; anything else first leaves the order pending and the late success is recorded for review. The split of final states varies between runs; every split is correct.
 
-A payment is completed while its unpaid order is cancelled at the same moment, and again after the cancellation. A late success is recorded for review (requires reconciliation), never applied, and stock is returned once, never twice.
+## 5. Cancellation against payment completion: PASS
+
+A payment is completed and its unpaid order cancelled in all three orders of arrival: the payment first (a paid order can not be cancelled), the cancel first (a late success is recorded for review, never applied) and both at the same moment. Stock is returned exactly once for a cancelled order, even when the cancel is repeated, and never for a paid one.
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 orders: 1 cancel + 20 completions at once | 105 | 104 | 1 | 0 | 0 | 428.1 ms | 441.9 ms | 457.6 ms | 229.4/s |
-| 5 cancelled orders x 20 late completions | 100 | 100 | 0 | 0 | 0 | 490.4 ms | 506.5 ms | 523.9 ms | 190.9/s |
+| 5 paid orders: cancel sent after the payment completed | 5 | 0 | 5 | 0 | 0 | 59.7 ms | 64.4 ms | 66.5 ms | 75.2/s |
+| 5 orders x 3 cancels at once | 15 | 5 | 10 | 0 | 0 | 89.6 ms | 108.2 ms | 111.3 ms | 134.8/s |
+| 5 cancelled orders x 20 late completions | 100 | 100 | 0 | 0 | 0 | 808.5 ms | 839.3 ms | 855.9 ms | 116.8/s |
+| 5 orders: 1 cancel + 20 completions at once | 105 | 105 | 0 | 0 | 0 | 1.15 s | 1.16 s | 1.22 s | 86.0/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
-| Race: every order ended in one consistent outcome | PASS | 5 of 5 orders (cancel won 4, payment won 1) |
-| Race: stock equals the original minus the orders that were paid | PASS | stock 999; before 995, 1 paid, 4 cancelled and returned once each |
-| After cancel: every late completion is "recorded_for_review" | PASS | recorded_for_review 100 |
-| After cancel: orders and payments stay cancelled | PASS | 5 orders cancelled, 5 payments cancelled |
-| After cancel: one reconciliation event per payment | PASS | 5 of 5 payments |
-| After cancel: stock was returned once and equals the original | PASS | before orders 1000, after cancel 1000, after late completions 1000 |
-| No unexpected responses | PASS | 0 unexpected of 205 requests |
+| Payment first: the completion was applied and the order is confirmed | PASS | 5 of 5 orders confirmed, 5 completions applied |
+| Payment first: the later cancel is refused because the order is paid | PASS | 5 of 5 refused (cancel refused: paid 5) |
+| Payment first: no stock was returned | PASS | stock 995 before, 995 after |
+| Cancel first: exactly one of 3 cancels per order succeeded, the others were refused as already cancelled | PASS | 5 of 5 orders (cancel refused: already cancelled 10, cancelled 5) |
+| Cancel first: stock was returned once and equals the original | PASS | before orders 1000, after cancels 1000, after late completions 1000 |
+| Cancel first: every late completion is "recorded_for_review" | PASS | recorded_for_review 100 |
+| Cancel first: orders and payments stay cancelled | PASS | 5 orders cancelled, 5 payments cancelled |
+| Cancel first: one reconciliation event per payment | PASS | 5 of 5 payments |
+| Race: every order ended in one consistent outcome (the winner is reported, not asserted) | PASS | 5 of 5 orders (cancel won 5, payment won 0) |
+| Race: stock equals the original minus the orders that were paid | PASS | stock 1000; before 995, 0 paid, 5 cancelled and returned once each |
+| No unexpected responses | PASS | 0 unexpected of 225 requests |
 | No 429 (a 429 is a setup problem, not a pass) | PASS | 0 throttled |
 | No 5xx responses | PASS | 0 server errors |
 | No deadlock (40P01) in the backend output or in PostgreSQL | PASS | 0 in backend output, 0 counted by pg_stat_database |
 | The backend logged no errors | PASS | 0 error lines |
 
-- In the race either side may win, and both outcomes are correct: the cancel wins (the late success is recorded for review) or the payment wins (the cancel is refused because the order is paid). A mixed outcome would fail the check. Every second cancel is held back 15 ms so that both orderings occur.
+- Who won, out of 5 orders in each group: payment first, the payment won 5 (the cancel was refused 5); cancel first, the cancel won 5 (late successes recorded for review); simultaneous race, the cancel won 5 and the payment won 0.
+- The first two groups fix the order of arrival by waiting for the first request to be answered before the next is sent, so both orders are always exercised. In the simultaneous race either side may win and both outcomes are correct (cancel wins: the late success is recorded for review; payment wins: the cancel is refused because the order is paid). A mixed outcome would fail the check.
 - Order expiry is not exercised: the expiry job is off when NODE_ENV=test, and expiry cancels through the same function as a cancel.
 
 ## Clean-up
@@ -155,5 +165,5 @@ A payment is completed while its unpaid order is cancelled at the same moment, a
 | Backend process stopped | yes |
 | Rows created by the run removed | yes |
 | Seeded demo rows unchanged | yes |
-| Rows removed | payment events 15, payments 25, order items 55, orders 45, cart items 190, carts 200, addresses 425, customers 425, variants 7, products 1, categories 1 |
+| Rows removed | payment events 30, payments 30, order items 60, orders 50, cart items 190, carts 200, addresses 430, customers 430, variants 8, products 1, categories 1 |
 
