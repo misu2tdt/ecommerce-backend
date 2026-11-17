@@ -132,6 +132,151 @@ describe('images:upload --catalog all', () => {
     expect(report.missingBanners).toEqual([]);
   });
 
+  describe('batch 1 product pictures must be .jpg', () => {
+    const slot = getCatalogExpansionImageSlots()[0];
+    const stem = `${slot.productSlug}__${slot.colorSlug}`;
+    const withoutIt = () => [
+      ...baseFiles(),
+      ...expansionFiles().filter((name) => name !== `${stem}.jpg`),
+    ];
+
+    async function dryRun(
+      files: string[],
+      extra: string[] = ['--catalog', 'all'],
+    ) {
+      const output = io();
+      const code = await runDemoImagesCli(
+        ['--dir', folder(files), ...extra, '--dry-run'],
+        { env: {}, io: output, outputFile: join(directory, 'out.json') },
+      );
+      return { code, text: output.text() };
+    }
+
+    it.each(['png', 'webp', 'jpeg', 'PNG'])(
+      'refuses a .%s product picture with a clear message, and uploads nothing',
+      async (extension) => {
+        const createClient = jest.fn();
+        const output = io();
+
+        const code = await runDemoImagesCli(
+          [
+            '--dir',
+            folder([
+              ...withoutIt(),
+              `${stem}.${extension}`,
+              ...expansionBanners(),
+            ]),
+            '--catalog',
+            'all',
+          ],
+          {
+            env: {
+              CLOUDINARY_CLOUD_NAME: 'my-real-looking-cloud',
+              CLOUDINARY_API_KEY: '123456789012345',
+              CLOUDINARY_API_SECRET: 'S3cr3t-value-that-must-never-be-printed',
+            },
+            io: output,
+            createClient,
+            outputFile: join(directory, 'out.json'),
+          },
+        );
+
+        expect(code).toBe(1);
+        expect(createClient).not.toHaveBeenCalled();
+        expect(output.text()).toContain(
+          `unexpected: ${stem}.${extension} - product pictures must be .jpg files. Save it as ${stem}.jpg`,
+        );
+        expect(output.text()).toContain('Nothing was uploaded');
+      },
+    );
+
+    it('accepts the same picture as .jpg, in any letter case', async () => {
+      for (const name of [`${stem}.jpg`, `${stem}.JPG`]) {
+        const { code, text } = await dryRun([
+          ...withoutIt(),
+          name,
+          ...expansionBanners(),
+        ]);
+        expect(code).toBe(0);
+        expect(text).toContain('Product images found: 139 of 139');
+      }
+    });
+
+    it('does not apply to banners: .png and .jpg banners are both fine', async () => {
+      const banners = CATALOG_EXPANSION_BANNER_NAMES.map((name, index) =>
+        index % 2 === 0 ? `${name}.png` : `${name}.jpg`,
+      );
+
+      const { code, text } = await dryRun([
+        ...baseFiles(),
+        ...expansionFiles(),
+        ...banners,
+      ]);
+
+      expect(code).toBe(0);
+      expect(text).toContain('Banner-style images found: 8');
+    });
+
+    it('does not apply to the base catalog, whose pictures exist as .png', async () => {
+      const base = getDemoImageSlots();
+      const files = [
+        ...base.map((entry, index) =>
+          index % 2 === 0
+            ? `${fileName(entry)}`
+            : `${fileName(entry).replace(/\.jpg$/, '.png')}`,
+        ),
+        ...expansionFiles(),
+      ];
+
+      const { code, text } = await dryRun(files);
+
+      expect(code).toBe(0);
+      expect(text).toContain('Product images found: 139 of 139');
+    });
+
+    it('is only asked for with --catalog all: without it nothing changes', async () => {
+      const { code, text } = await dryRun(
+        getDemoImageSlots().map((entry, index) =>
+          index === 0
+            ? `${fileName(entry).replace(/\.jpg$/, '.png')}`
+            : fileName(entry),
+        ),
+        [],
+      );
+
+      expect(code).toBe(0);
+      expect(text).toContain('Product images found: 48 of 48');
+    });
+
+    it('reports only the files of products that must be .jpg, at the level of the analysis', () => {
+      const report = analyzeDemoImageFolder(
+        folder([`${stem}.png`, 'other__black.png']),
+        [
+          {
+            productName: 'A',
+            productSlug: slot.productSlug,
+            colorName: 'X',
+            colorSlug: slot.colorSlug,
+          },
+          {
+            productName: 'O',
+            productSlug: 'other',
+            colorName: 'Black',
+            colorSlug: 'black',
+          },
+        ],
+        { jpgOnlyProductSlugs: new Set([slot.productSlug]) },
+      );
+
+      expect(report.unexpected.map((entry) => entry.fileName)).toEqual([
+        `${stem}.png`,
+      ]);
+      expect(report.productFiles.map((file) => file.name)).toEqual([
+        'other__black',
+      ]);
+    });
+  });
+
   it('without the flag nothing changes: 48 images are expected and a batch 1 image is unexpected', async () => {
     const complete = io();
     expect(

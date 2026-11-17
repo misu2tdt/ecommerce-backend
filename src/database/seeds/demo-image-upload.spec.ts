@@ -19,6 +19,7 @@ import {
   type DemoImageUploadOptions,
 } from './demo-image-upload';
 import {
+  demoImageIdentity,
   parseDemoImageManifest,
   serializeDemoImageManifest,
   type DemoImageSlot,
@@ -290,6 +291,66 @@ describe('demo image tooling', () => {
       expect(serializeDemoImageManifest(b.manifest)).toBe(
         serializeDemoImageManifest(a.manifest),
       );
+    });
+
+    it('replaces a picture by uploading the same file name again: same public id, overwrite and cache invalidation, same manifest entry', async () => {
+      // A placeholder first, then a real picture saved under the same name.
+      const names = [
+        'alpha-tee__black.jpg',
+        'alpha-tee__sage-green.jpg',
+        'beta-cap__navy.jpg',
+      ];
+      const versioned = (version: string) =>
+        jest.fn(async (_filePath: string, options: DemoImageUploadOptions) => ({
+          ...successResult(options),
+          secure_url: `https://res.cloudinary.com/${CLOUD}/image/upload/${version}/${options.public_id}.jpg`,
+        }));
+      const before = versioned('v1700000000');
+      const after = versioned('v1800000000');
+
+      const placeholder = await uploadDemoImages({
+        report: analyzeDemoImageFolder(imageFolder(names), slots),
+        client: { upload: before },
+        sleep: async () => undefined,
+      });
+      const real = await uploadDemoImages({
+        report: analyzeDemoImageFolder(imageFolder(names), slots),
+        client: { upload: after },
+        sleep: async () => undefined,
+      });
+
+      const optionsOf = (mock: typeof before) =>
+        mock.mock.calls.map(([, options]) => options);
+      expect(
+        optionsOf(after)
+          .map((o) => o.public_id)
+          .sort(),
+      ).toEqual(
+        optionsOf(before)
+          .map((o) => o.public_id)
+          .sort(),
+      );
+      for (const options of [...optionsOf(before), ...optionsOf(after)]) {
+        expect(options.overwrite).toBe(true);
+        // The CDN copies of the old picture are dropped.
+        expect(options.invalidate).toBe(true);
+        // No random suffix: the public id never changes by itself.
+        expect(options.unique_filename).toBe(false);
+        expect(options.use_filename).toBe(false);
+      }
+      // The same entries, in the same order; only the version in the url moves.
+      expect(
+        real.manifest.products.map((p) => `${p.productSlug}__${p.colorSlug}`),
+      ).toEqual(
+        placeholder.manifest.products.map(
+          (p) => `${p.productSlug}__${p.colorSlug}`,
+        ),
+      );
+      for (const [index, entry] of real.manifest.products.entries()) {
+        const old = placeholder.manifest.products[index];
+        expect(entry.url).not.toBe(old.url);
+        expect(demoImageIdentity(entry.url)).toBe(demoImageIdentity(old.url));
+      }
     });
 
     it('retries transient failures with a growing delay and then succeeds', async () => {

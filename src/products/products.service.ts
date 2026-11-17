@@ -19,6 +19,7 @@ import type { Paging } from '../pagination/pagination';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductQueryDto, ProductSort } from './dto/product-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { containsPattern } from './search-pattern';
 import { ProductStatus } from './entities/product-status.enum';
 import { ProductImage } from './entities/product-image.entity';
 import { ProductVariant } from './entities/product-variant.entity';
@@ -239,8 +240,9 @@ export class ProductsService {
       builder.andWhere('brand.slug = :brandSlug', { brandSlug: query.brand });
     }
     if (query.q) {
+      // The term is plain text: % and _ are escaped, so they match themselves.
       builder.andWhere('product.name ILIKE :search', {
-        search: `%${query.q}%`,
+        search: containsPattern(query.q),
       });
     }
     if (query.collection) {

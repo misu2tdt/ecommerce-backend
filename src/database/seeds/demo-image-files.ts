@@ -11,6 +11,7 @@ import type { DemoImageSlot } from './demo-image-manifest';
 export const MAX_DEMO_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const IMAGE_EXTENSION = /\.(?:jpe?g|png|webp)$/i;
+const JPG_EXTENSION = /\.jpg$/i;
 const SLUG = '[a-z0-9]+(?:-[a-z0-9]+)*';
 const PRODUCT_NAME = new RegExp(`^(${SLUG})__(${SLUG})$`);
 const BANNER_NAME = new RegExp(`^(?:banner|category|brand)-${SLUG}$`);
@@ -53,6 +54,14 @@ export interface DemoImageReport {
   missingBanners?: string[];
 }
 
+// A product picture is replaced later by uploading a file with the same name. The
+// picture's url ends with the file's format, and the seed only recognises the
+// same picture by the whole url (without its version), so a placeholder .jpg
+// replaced by a .png would end up as a second image row. Keeping .jpg avoids it.
+export function jpgOnlyReason(name: string): string {
+  return `product pictures must be .jpg files. Save it as ${name}.jpg: another format would change the picture's url, and the seed would add a second image next to the old one instead of replacing it`;
+}
+
 export function parseDemoImageFileName(
   fileName: string,
 ): ParsedDemoImageName | null {
@@ -75,7 +84,13 @@ export function parseDemoImageFileName(
 export function analyzeDemoImageFolder(
   directory: string,
   slots: readonly DemoImageSlot[],
-  options: { maxBytes?: number; expectedBanners?: readonly string[] } = {},
+  options: {
+    maxBytes?: number;
+    expectedBanners?: readonly string[];
+    // Products whose pictures must be .jpg files (see jpgOnlyReason). Products
+    // not listed keep accepting .png and .webp.
+    jpgOnlyProductSlugs?: ReadonlySet<string>;
+  } = {},
 ): DemoImageReport {
   const maxBytes = options.maxBytes ?? MAX_DEMO_IMAGE_BYTES;
   if (!existsSync(directory) || !statSync(directory).isDirectory()) {
@@ -138,6 +153,16 @@ export function analyzeDemoImageFolder(
         report.unexpected.push({
           fileName,
           reason: `product "${parsed.productSlug}" has no colour "${parsed.colorSlug}" (expected: ${colors.join(', ')})`,
+        });
+        continue;
+      }
+      if (
+        options.jpgOnlyProductSlugs?.has(parsed.productSlug) &&
+        !JPG_EXTENSION.test(fileName)
+      ) {
+        report.unexpected.push({
+          fileName,
+          reason: jpgOnlyReason(parsed.name),
         });
         continue;
       }

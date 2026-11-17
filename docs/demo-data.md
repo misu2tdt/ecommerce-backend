@@ -185,6 +185,81 @@ back, use the database provider's point-in-time restore, or restore a Neon branc
 made before the run (create the branch first, then run the seed against the main
 branch).
 
+## Placeholder images for batch 1
+
+Until the final pictures exist, `npm run images:placeholders` draws a
+placeholder for every picture batch 1 needs, so the catalog can be shown:
+
+- 91 product pictures, one per colour (`{product-slug}__{colour-slug}.jpg`, 4:5,
+  1024x1280), a soft gradient in the colour of the variant with the product name,
+  the category and the colour name; two-tone products (`Cream & Navy`) get the
+  second colour as a band;
+- 8 banners the pages read (`category-activewear`, `category-loungewear-sleepwear`
+  and six `banner-collection-<slug>`, 3:2, 1536x1024) and 4 optional brand banners
+  (`brand-<slug>`, left out with `--no-brands`).
+
+Every picture says "PREVIEW IMAGE" in small type, so a placeholder is not mistaken
+for a final one. The output is deterministic (the same bytes for the same input on
+the same machine; the text uses the first sans-serif font the system has, so another
+operating system can draw the letters slightly differently) and takes a few seconds.
+It needs no network, database or credentials.
+
+```powershell
+npm.cmd run images:placeholders                       # ../_catalog-input/images
+npm.cmd run images:placeholders -- --out <folder>     # or PLACEHOLDER_IMAGES_DIR
+npm.cmd run images:placeholders -- --force            # redraw files that exist
+```
+
+The folder defaults to `_catalog-input/images` next to the repositories. The
+command refuses a folder inside the repository, because generated pictures are not
+committed. A file that is already in the folder is **kept** unless `--force` is
+given, so a real picture saved in place of a placeholder is never overwritten by a
+later run.
+
+**Upload.** The upload script (`--catalog all`) expects the base catalog's 48
+pictures as well, so copy those into the same folder first; without them the dry
+run lists them as missing and the real run refuses. Then:
+
+```powershell
+npm.cmd run images:upload -- --dir <folder> --catalog all --dry-run
+npm.cmd run images:upload -- --dir <folder> --catalog all    # needs the CLOUDINARY_* values
+```
+
+With `--catalog all` a batch 1 product picture must be a `.jpg` file: the dry run and the
+real run refuse another extension (banners and the base catalog's 48 pictures keep their
+current rules).
+
+Commit the rewritten `src/database/seeds/demo-images.json`, then seed as described
+above. Placeholders are never generated for the base catalog's 48 pictures, because
+uploading them would overwrite the real ones.
+
+**Replacing a placeholder with the real picture.** Save the real file in the same
+folder under the same name, **keeping the `.jpg` extension for a product picture**,
+and run the same upload again:
+
+- the Cloudinary public id is the file name without its extension
+  (`evergreen/demo/<name>`), and the upload sets `overwrite` and `invalidate`, so
+  the picture at that id is replaced and the CDN copies of the old one are dropped;
+  no random suffix is ever added;
+- the manifest keeps the same entries in the same sorted order; only the
+  `/v<number>/` part of each url (and the width and height, if the real picture
+  differs) changes. Commit it;
+- the seed matches a picture by its url without the version, so re-running the seed
+  (`seed:demo:catalog`) updates the url of the existing row in place: no duplicate
+  row and no new product image. The uploader does not skip unchanged files, so every
+  uploaded file gets a new version;
+- a real picture with another extension (for example `.png`) changes the url's
+  extension, so the seed would not recognise it as the same picture and would add a
+  second row next to the placeholder (the seed never deletes an image). Keep `.jpg`.
+
+Whether the url already stored in the database (with the old version number) shows
+the new picture before the seed is re-run depends on how Cloudinary treats an old
+version number after an overwrite. That was not tested here (the scripts were not
+run against Cloudinary), so re-run the seed after replacing pictures.
+
+`sharp` (a development dependency) draws the pictures; the repository had no image
+library.
+
 ## Fresh database vs. Production upgrade behavior
 
 ### Fresh isolated database

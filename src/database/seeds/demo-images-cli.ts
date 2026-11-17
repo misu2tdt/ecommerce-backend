@@ -66,7 +66,15 @@ export async function runDemoImagesCli(
       options.dir,
       slots,
       options.catalog === 'all'
-        ? { expectedBanners: CATALOG_EXPANSION_BANNER_NAMES }
+        ? {
+            expectedBanners: CATALOG_EXPANSION_BANNER_NAMES,
+            // Batch 1 pictures are replaced later by uploading the same name
+            // again, so they must be .jpg. The base catalog's 48 pictures keep
+            // their current rules (they exist as .png).
+            jpgOnlyProductSlugs: new Set(
+              getCatalogExpansionImageSlots().map((slot) => slot.productSlug),
+            ),
+          }
         : {},
     );
     for (const line of formatDemoImageReport(report, slots.length)) {

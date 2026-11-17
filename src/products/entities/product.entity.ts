@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -16,7 +17,12 @@ import { ProductVariant } from './product-variant.entity';
 import { WishlistItem } from '../../wishlist/entities/wishlist-item.entity';
 import { ProductReview } from '../../reviews/entities/product-review.entity';
 
+// The trigram GIN index of the name search (see the migration
+// AddProductNameTrigramIndex). TypeORM can not describe an operator class, so the
+// declaration only tells it the index exists and must be left alone:
+// synchronize: false.
 @Entity('products')
+@Index('IDX_products_name_trgm', { synchronize: false })
 export class Product {
   @PrimaryGeneratedColumn()
   id!: number;

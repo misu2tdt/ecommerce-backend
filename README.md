@@ -219,8 +219,8 @@ numbers, their reasons and the limits of the design are in
 
 | Suite | Command | Count (latest run) | What it covers |
 | --- | --- | --- | --- |
-| Unit | `npm test` | 711 tests, 63 suites | Pure logic, guards, DTO validation, services with mocks |
-| Integration | `npm run test:integration` | 363 tests, 33 suites | Real PostgreSQL: checkout and stock, payments and reconciliation, expiry, migrations, seeds, rate limiting, pagination |
+| Unit | `npm test` | 782 tests, 71 suites | Pure logic, guards, DTO validation, services with mocks |
+| Integration | `npm run test:integration` | 383 tests, 34 suites | Real PostgreSQL: checkout and stock, payments and reconciliation, expiry, migrations, seeds, rate limiting, pagination, product search and its index |
 | Database safety | `npm run test:database-safety` | 7 tests | The guards that keep tests off any other database |
 | End to end | `npm run test:e2e` | 1 test | The application boots and answers |
 
@@ -277,6 +277,8 @@ Useful commands:
 | `npm run demo:restock -- --dry-run` | Show how a refill of demo stock would change it, then run without the flag |
 | `npm run test:integration` | Needs `.env.test` and `ECOMMERCE_TEST_DB_PASSWORD` in the shell |
 | `npm run loadtest:concurrency` | Concurrency check of ordering and payments (200 customers racing for 10 units, opposite lock orders, repeated payment requests, late completions); results in [docs/load-test-results.md](./docs/load-test-results.md), how to run it in [docs/concurrency-check.md](./docs/concurrency-check.md). Isolated test database only; not part of CI |
+| `npm run images:placeholders` | Generate neutral placeholder JPGs for the batch 1 products and banners into a folder outside the repo (see [docs/demo-data.md](./docs/demo-data.md)) |
+| `npm run search:explain` | Before/after `EXPLAIN (ANALYZE, BUFFERS)` of product search with and without the trigram index, on throwaway rows; results in [docs/search-performance.md](./docs/search-performance.md). Isolated test database only |
 | `npm run dev:db:down` | Stop the local database container (keeps the data) |
 
 More detail: [docs/local-development.md](./docs/local-development.md) (setup and
