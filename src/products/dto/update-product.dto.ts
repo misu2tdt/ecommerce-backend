@@ -4,9 +4,11 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Max,
   Min,
 } from 'class-validator';
 import { Trim } from '../../catalog/dto-validation';
+import { INT_MAX } from '../../validation/limits';
 import { ProductStatus } from '../entities/product-status.enum';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -28,6 +30,7 @@ export class UpdateProductDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(INT_MAX)
   categoryId?: number;
 
   @ApiPropertyOptional({
@@ -39,6 +42,7 @@ export class UpdateProductDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(INT_MAX)
   brandId?: number | null;
 
   @ApiPropertyOptional({ enum: ProductStatus, example: ProductStatus.ACTIVE })

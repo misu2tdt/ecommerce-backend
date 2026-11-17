@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Put,
@@ -36,6 +35,7 @@ import { CollectionsService } from './collections.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { ReplaceCollectionProductsDto } from './dto/replace-collection-products.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('admin/collections')
 @UseGuards(AuthGuard, RolesGuard)
@@ -77,7 +77,7 @@ export class AdminCollectionsController {
     description: 'ADMIN only. Includes inactive products.',
   })
   @ApiNotFoundResponse({ description: 'Collection not found.' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParseIdPipe) id: number) {
     return this.collectionsService.findOneForAdmin(id);
   }
 
@@ -100,7 +100,7 @@ export class AdminCollectionsController {
   @ApiNotFoundResponse({ description: 'Collection not found.' })
   @ApiConflictResponse({ description: 'The slug is already used.' })
   update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIdPipe) id: number,
     @Body() dto: UpdateCollectionDto,
   ) {
     return this.collectionsService.update(id, dto);
@@ -112,7 +112,7 @@ export class AdminCollectionsController {
     description: 'ADMIN only.',
   })
   @ApiNotFoundResponse({ description: 'Collection not found.' })
-  toggleActive(@Param('id', ParseIntPipe) id: number) {
+  toggleActive(@Param('id', ParseIdPipe) id: number) {
     return this.collectionsService.toggleActive(id);
   }
 
@@ -124,7 +124,7 @@ export class AdminCollectionsController {
   })
   @ApiNotFoundResponse({ description: 'Collection not found.' })
   replaceProducts(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIdPipe) id: number,
     @Body() dto: ReplaceCollectionProductsDto,
   ) {
     return this.collectionsService.replaceProducts(id, dto.productIds);

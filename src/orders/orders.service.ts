@@ -27,6 +27,7 @@ import { Order } from './entities/order.entity';
 import { cancelLockedOrder } from './order-cancellation';
 import { ORDER_PAYMENT_WINDOW_MINUTES } from './orders.constants';
 import { snapshotShippingAddress } from './shipping-address';
+import { MAX_LINES, MAX_QUANTITY_PER_LINE } from '../validation/limits';
 
 interface NormalizedOrderItem {
   variantId: number;
@@ -411,6 +412,16 @@ export class OrdersService {
         item.variantId,
         (quantities.get(item.variantId) ?? 0) + item.quantity,
       );
+    // The same variant on several lines counts as one line.
+    if (quantities.size > MAX_LINES)
+      throw new BadRequestException(
+        `An order holds at most ${MAX_LINES} different products`,
+      );
+    for (const quantity of quantities.values())
+      if (quantity > MAX_QUANTITY_PER_LINE)
+        throw new BadRequestException(
+          `An order holds at most ${MAX_QUANTITY_PER_LINE} units of one product`,
+        );
     return [...quantities.entries()]
       .sort(([first], [second]) => first - second)
       .map(([variantId, quantity]) => ({ variantId, quantity }));

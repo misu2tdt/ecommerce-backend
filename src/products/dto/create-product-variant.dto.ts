@@ -14,7 +14,11 @@ import {
   ValidationOptions,
 } from 'class-validator';
 import { Trim } from '../../catalog/dto-validation';
-import { VND_MAX_AMOUNT } from '../../money/vnd-money';
+import {
+  MAX_POSITION,
+  MAX_PRICE_VND,
+  MAX_STOCK,
+} from '../../validation/limits';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductVariantDto {
@@ -42,31 +46,37 @@ export class CreateProductVariantDto {
     type: 'integer',
     example: 24990000,
     minimum: 0,
-    maximum: VND_MAX_AMOUNT,
+    maximum: MAX_PRICE_VND,
     description: 'Integer VND; decimals are not accepted.',
   })
   @IsInt()
   @Min(0)
-  @Max(VND_MAX_AMOUNT)
+  @Max(MAX_PRICE_VND)
   price!: number;
 
   @ApiPropertyOptional({
     type: 'integer',
     example: 29990000,
     minimum: 0,
-    maximum: VND_MAX_AMOUNT,
+    maximum: MAX_PRICE_VND,
     description:
       'Optional compare-at reference price in integer VND (must be > price).',
   })
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(VND_MAX_AMOUNT)
+  @Max(MAX_PRICE_VND)
   compareAtPrice?: number | null;
 
-  @ApiProperty({ type: 'integer', example: 25, minimum: 0 })
+  @ApiProperty({
+    type: 'integer',
+    example: 25,
+    minimum: 0,
+    maximum: MAX_STOCK,
+  })
   @IsInt()
   @Min(0)
+  @Max(MAX_STOCK)
   stock!: number;
 
   @ApiPropertyOptional({
@@ -89,11 +99,13 @@ export class CreateProductVariantDto {
     type: 'integer',
     example: 0,
     minimum: 0,
+    maximum: MAX_POSITION,
     default: 0,
   })
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(MAX_POSITION)
   position?: number;
 }
 

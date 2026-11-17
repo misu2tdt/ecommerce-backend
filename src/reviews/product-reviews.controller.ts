@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   UseGuards,
@@ -21,6 +20,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { CreateProductReviewDto } from './dto/create-product-review.dto';
 import { UpdateProductReviewDto } from './dto/update-product-review.dto';
 import { ProductReviewsService } from './product-reviews.service';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('products/:productId/reviews')
 @ApiTags('Reviews')
@@ -32,7 +32,7 @@ export class ProductReviewsController {
     summary: 'List visible public reviews for a Product',
     description: 'Hidden reviews are excluded.',
   })
-  findPublic(@Param('productId', ParseIntPipe) productId: number) {
+  findPublic(@Param('productId', ParseIdPipe) productId: number) {
     return this.reviewsService.findPublic(productId);
   }
 
@@ -42,7 +42,7 @@ export class ProductReviewsController {
   @UseGuards(AuthGuard)
   findMine(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId', ParseIdPipe) productId: number,
   ) {
     return this.reviewsService.findMine(user.id, productId);
   }
@@ -57,7 +57,7 @@ export class ProductReviewsController {
   @UseGuards(AuthGuard)
   create(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId', ParseIdPipe) productId: number,
     @Body() dto: CreateProductReviewDto,
   ) {
     return this.reviewsService.create(user.id, productId, dto);
@@ -69,7 +69,7 @@ export class ProductReviewsController {
   @UseGuards(AuthGuard)
   updateMine(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId', ParseIdPipe) productId: number,
     @Body() dto: UpdateProductReviewDto,
   ) {
     return this.reviewsService.updateMine(user.id, productId, dto);
@@ -81,7 +81,7 @@ export class ProductReviewsController {
   @UseGuards(AuthGuard)
   removeMine(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId', ParseIdPipe) productId: number,
   ) {
     return this.reviewsService.removeMine(user.id, productId);
   }

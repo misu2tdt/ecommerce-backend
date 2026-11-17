@@ -9,6 +9,7 @@ import type { Paging } from '../pagination/pagination';
 import { isUniqueViolation } from '../catalog/database-errors';
 import { OrderStatus } from '../orders/entities/order-status.enum';
 import { OrderItem } from '../orders/entities/order-item.entity';
+import { ProductStatus } from '../products/entities/product-status.enum';
 import { Product } from '../products/entities/product.entity';
 import { CreateProductReviewDto } from './dto/create-product-review.dto';
 import { UpdateProductReviewDto } from './dto/update-product-review.dto';
@@ -18,12 +19,17 @@ import { ProductReview } from './entities/product-review.entity';
 export class ProductReviewsService {
   constructor(private readonly dataSource: DataSource) {}
 
+  // A product that is not on sale (inactive) is not shown in the catalog, so its
+  // reviews are not listed and no new review is accepted for it either. The
+  // answer is the same 404 as for an id that does not exist.
+  private isOnSale(productId: number): Promise<boolean> {
+    return this.dataSource
+      .getRepository(Product)
+      .existsBy({ id: productId, status: ProductStatus.ACTIVE });
+  }
+
   async create(userId: number, productId: number, dto: CreateProductReviewDto) {
-    if (
-      !(await this.dataSource
-        .getRepository(Product)
-        .existsBy({ id: productId }))
-    )
+    if (!(await this.isOnSale(productId)))
       throw new NotFoundException('Product not found');
     if (!(await this.hasDeliveredPurchase(userId, productId)))
       throw new ForbiddenException(
@@ -78,11 +84,7 @@ export class ProductReviewsService {
   }
 
   async findPublic(productId: number) {
-    if (
-      !(await this.dataSource
-        .getRepository(Product)
-        .existsBy({ id: productId }))
-    )
+    if (!(await this.isOnSale(productId)))
       throw new NotFoundException('Product not found');
     const reviews = await this.dataSource.getRepository(ProductReview).find({
       where: { productId, isVisible: true },

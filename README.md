@@ -314,6 +314,8 @@ The full procedure, including rollback, is in
 
 ## Known limitations and what I would do next
 
+More, with the reason and the fix for each: [docs/known-limitations.md](./docs/known-limitations.md).
+
 - **No refunds.** A succeeded payment cannot be reversed; reconciliation only
   records that an admin handled a late or conflicting callback. Next: a refund
   flow through the provider and the matching order and stock rules.

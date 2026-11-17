@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -25,6 +25,7 @@ import { AddressesModule } from './addresses/addresses.module';
 import { CartsModule } from './carts/carts.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PromotionsModule } from './promotions/promotions.module';
+import { DatabaseRangeFilter } from './validation/database-range.filter';
 
 @Module({
   imports: [
@@ -73,6 +74,9 @@ import { PromotionsModule } from './promotions/promotions.module';
     AppService,
     // Applies the global rate limit to every route (opt out with @SkipThrottle).
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // A value a column can not hold becomes a 400, not a 500 (a backstop for the
+    // limits on the DTOs).
+    { provide: APP_FILTER, useClass: DatabaseRangeFilter },
   ],
 })
 export class AppModule {}

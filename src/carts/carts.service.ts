@@ -10,6 +10,7 @@ import { ProductStatus } from '../products/entities/product-status.enum';
 import { ProductVariant } from '../products/entities/product-variant.entity';
 import { Coupon } from '../promotions/entities/coupon.entity';
 import { PromotionsService } from '../promotions/promotions.service';
+import { MAX_LINES, MAX_QUANTITY_PER_LINE } from '../validation/limits';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { CartItem } from './entities/cart-item.entity';
@@ -72,6 +73,23 @@ export class CartsService {
         throw new BadRequestException('Variant is inactive');
       if (variant.product.status !== ProductStatus.ACTIVE)
         throw new BadRequestException('Product is inactive');
+
+      // The cart is locked, so these numbers can not change under us. Adding to
+      // a line adds to its quantity, so the limit is checked on the sum.
+      const lines = await manager
+        .getRepository(CartItem)
+        .find({ where: { cartId: cart.id } });
+      const line = lines.find((item) => item.variantId === dto.variantId);
+      if (line) {
+        if (line.quantity + dto.quantity > MAX_QUANTITY_PER_LINE)
+          throw new BadRequestException(
+            `A cart line holds at most ${MAX_QUANTITY_PER_LINE} units`,
+          );
+      } else if (lines.length >= MAX_LINES) {
+        throw new BadRequestException(
+          `A cart holds at most ${MAX_LINES} different products`,
+        );
+      }
 
       await manager.query(
         `INSERT INTO "cart_items" ("cartId", "variantId", "quantity") VALUES ($1, $2, $3) ON CONFLICT ("cartId", "variantId") DO UPDATE SET "quantity" = "cart_items"."quantity" + EXCLUDED."quantity", "updatedAt" = CURRENT_TIMESTAMP`,

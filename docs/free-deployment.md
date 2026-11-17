@@ -208,6 +208,52 @@ in [payments.md](./payments.md).
 Rerun the seed (`npm run seed:demo:production`, see section D) to give the
 seeded delivered order its succeeded demo payment; it adds nothing twice.
 
+### Duplicate email check
+
+Registration and sign-in now treat emails as the same account whatever their case
+or surrounding spaces, and new accounts are stored in lowercase. **No migration
+and no index change came with that.** Accounts created earlier may include two
+that differ only by case (`Ann@x.com` and `ann@x.com`). Both can still sign in,
+each with their own password, but a unique index on `lower("email")` can not be
+built while such a pair exists.
+
+Run these two **read-only** queries once against the production database (for
+example in the Neon SQL editor). Nothing here changes data.
+
+```sql
+-- 1. Accounts whose emails are the same apart from case or spaces.
+--    Expected: zero rows.
+SELECT lower(btrim("email"))             AS email_normalised,
+       count(*)                          AS accounts,
+       array_agg("id"        ORDER BY "id") AS user_ids,
+       array_agg("email"     ORDER BY "id") AS emails,
+       array_agg("role"      ORDER BY "id") AS roles,
+       array_agg("createdAt" ORDER BY "id") AS created
+FROM "users"
+GROUP BY lower(btrim("email"))
+HAVING count(*) > 1
+ORDER BY accounts DESC, email_normalised;
+
+-- 2. Accounts whose stored email is not already lowercase and trimmed.
+--    These sign in fine (the lookup ignores case) but an email with leading or
+--    trailing spaces would not be found. Expected: zero rows, or only
+--    capital letters.
+SELECT "id", "email"
+FROM "users"
+WHERE "email" <> lower(btrim("email"))
+ORDER BY "id";
+```
+
+If query 1 returns rows, decide for each pair which account stays (compare
+`created`, orders and addresses) before doing anything; do not delete on a guess.
+
+**Later step, not done:** once query 1 returns zero rows, add
+`CREATE UNIQUE INDEX "UQ_users_email_lower" ON "users" (lower("email"))` as a
+migration. A migration runs in a transaction, so it can not use `CONCURRENTLY`;
+the `users` table is small enough for that. The index also serves the
+`LOWER("email") = ...` lookups that sign-in and registration use today, which
+read the table without an index until then.
+
 ## I. Smoke checks
 
 1. Request the Render `/health` endpoint and expect a 200 JSON response.

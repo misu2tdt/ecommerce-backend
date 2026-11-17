@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   UseGuards,
@@ -24,6 +23,7 @@ import { QuoteCartDto } from '../promotions/dto/quote-cart.dto';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { CheckoutCartDto } from './dto/checkout-cart.dto';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('cart')
 @UseGuards(AuthGuard)
@@ -64,7 +64,7 @@ export class CartsController {
   @ApiOperation({ summary: 'Set a cart item quantity' })
   updateItem(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('itemId', ParseIntPipe) itemId: number,
+    @Param('itemId', ParseIdPipe) itemId: number,
     @Body() dto: UpdateCartItemDto,
   ) {
     return this.cartsService.updateItem(user.id, itemId, dto);
@@ -74,7 +74,7 @@ export class CartsController {
   @ApiOperation({ summary: 'Remove a cart item' })
   removeItem(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('itemId', ParseIntPipe) itemId: number,
+    @Param('itemId', ParseIdPipe) itemId: number,
   ) {
     return this.cartsService.removeItem(user.id, itemId);
   }

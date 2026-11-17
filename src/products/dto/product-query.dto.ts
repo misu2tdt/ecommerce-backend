@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   registerDecorator,
@@ -13,6 +14,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Trim } from '../../catalog/dto-validation';
+import { MAX_PRICE_VND } from '../../validation/limits';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   CATALOG_PAGE_SIZE,
@@ -194,6 +196,7 @@ export class ProductQueryDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(MAX_PRICE_VND)
   @IsLessThanOrEqualProperty('maxPrice', {
     message: 'minPrice cannot be greater than maxPrice',
   })
@@ -207,6 +210,7 @@ export class ProductQueryDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(MAX_PRICE_VND)
   maxPrice?: number;
 
   @ApiPropertyOptional({

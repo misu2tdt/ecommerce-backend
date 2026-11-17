@@ -12,7 +12,7 @@ import {
   Min,
 } from 'class-validator';
 import { NormalizeUpper, Trim } from '../../catalog/dto-validation';
-import { VND_MAX_AMOUNT } from '../../money/vnd-money';
+import { MAX_PRICE_VND } from '../../validation/limits';
 import { CouponType } from '../entities/coupon-type.enum';
 
 export class CreateCouponDto {
@@ -53,7 +53,7 @@ export class CreateCouponDto {
   })
   @IsInt()
   @Min(1)
-  @Max(VND_MAX_AMOUNT)
+  @Max(MAX_PRICE_VND)
   value!: number;
 
   @ApiPropertyOptional({
@@ -63,7 +63,7 @@ export class CreateCouponDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(VND_MAX_AMOUNT)
+  @Max(MAX_PRICE_VND)
   minSubtotal?: number | null;
 
   @ApiPropertyOptional({
@@ -74,7 +74,7 @@ export class CreateCouponDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(VND_MAX_AMOUNT)
+  @Max(MAX_PRICE_VND)
   maxDiscount?: number | null;
 
   @ApiPropertyOptional({

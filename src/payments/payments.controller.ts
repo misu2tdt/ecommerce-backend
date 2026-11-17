@@ -3,7 +3,6 @@ import {
   Get,
   Headers,
   Param,
-  ParseIntPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -23,6 +22,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PaymentsService } from './payments.service';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('orders/:orderId/payments')
 @UseGuards(AuthGuard)
@@ -70,7 +70,7 @@ export class PaymentsController {
   })
   create(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('orderId', ParseIntPipe) orderId: number,
+    @Param('orderId', ParseIdPipe) orderId: number,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
   ) {
     return this.paymentsService.createForOrder(
@@ -84,7 +84,7 @@ export class PaymentsController {
   @ApiOperation({ summary: 'List Payment attempts for an owned Order' })
   findAll(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('orderId', ParseIntPipe) orderId: number,
+    @Param('orderId', ParseIdPipe) orderId: number,
   ) {
     return this.paymentsService.findForOrder(user.id, orderId);
   }

@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -31,6 +30,7 @@ import { UserRole } from '../users/entities/user-role.enum';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
 import { PromotionsService } from './promotions.service';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('admin/promotions')
 @UseGuards(AuthGuard, RolesGuard)
@@ -69,7 +69,7 @@ export class PromotionsController {
     summary: 'Get a promotional coupon by ID',
     description: 'ADMIN only.',
   })
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParseIdPipe) id: number) {
     return this.promotionsService.findOneForAdmin(id);
   }
 
@@ -87,7 +87,7 @@ export class PromotionsController {
     summary: 'Update a promotional coupon',
     description: 'ADMIN only.',
   })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCouponDto) {
+  update(@Param('id', ParseIdPipe) id: number, @Body() dto: UpdateCouponDto) {
     return this.promotionsService.update(id, dto);
   }
 
@@ -96,7 +96,7 @@ export class PromotionsController {
     summary: 'Toggle active status of a promotional coupon',
     description: 'ADMIN only.',
   })
-  toggleActive(@Param('id', ParseIntPipe) id: number) {
+  toggleActive(@Param('id', ParseIdPipe) id: number) {
     return this.promotionsService.toggleActive(id);
   }
 }

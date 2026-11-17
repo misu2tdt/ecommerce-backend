@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -48,6 +47,7 @@ import {
   publicProductDetailSchema,
   publicProductListSchema,
 } from '../docs/swagger-schemas';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('products')
 @ApiTags('Catalog - Products')
@@ -68,7 +68,7 @@ export class ProductsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   createVariant(
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId', ParseIdPipe) productId: number,
     @Body() dto: CreateProductVariantDto,
   ) {
     return this.productVariantsService.createForProduct(productId, dto);
@@ -84,8 +84,8 @@ export class ProductsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   updateVariant(
-    @Param('productId', ParseIntPipe) productId: number,
-    @Param('variantId', ParseIntPipe) variantId: number,
+    @Param('productId', ParseIdPipe) productId: number,
+    @Param('variantId', ParseIdPipe) variantId: number,
     @Body() dto: UpdateProductVariantDto,
   ) {
     return this.productVariantsService.updateForProduct(
@@ -105,8 +105,8 @@ export class ProductsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   removeVariant(
-    @Param('productId', ParseIntPipe) productId: number,
-    @Param('variantId', ParseIntPipe) variantId: number,
+    @Param('productId', ParseIdPipe) productId: number,
+    @Param('variantId', ParseIdPipe) variantId: number,
   ) {
     return this.productVariantsService.removeForProduct(productId, variantId);
   }
@@ -135,7 +135,7 @@ export class ProductsController {
   @Roles(UserRole.ADMIN)
   @UseInterceptors(ProductImageUploadInterceptor)
   createImage(
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId', ParseIdPipe) productId: number,
     @Body() dto: CreateProductImageDto,
     @UploadedFile() file: Express.Multer.File | undefined,
   ) {
@@ -152,8 +152,8 @@ export class ProductsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   updateImage(
-    @Param('productId', ParseIntPipe) productId: number,
-    @Param('imageId', ParseIntPipe) imageId: number,
+    @Param('productId', ParseIdPipe) productId: number,
+    @Param('imageId', ParseIdPipe) imageId: number,
     @Body() dto: UpdateProductImageDto,
   ) {
     return this.productImagesService.updateForProduct(productId, imageId, dto);
@@ -169,8 +169,8 @@ export class ProductsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   removeImage(
-    @Param('productId', ParseIntPipe) productId: number,
-    @Param('imageId', ParseIntPipe) imageId: number,
+    @Param('productId', ParseIdPipe) productId: number,
+    @Param('imageId', ParseIdPipe) imageId: number,
   ) {
     return this.productImagesService.removeForProduct(productId, imageId);
   }
@@ -211,7 +211,7 @@ export class ProductsController {
   })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  findOneForAdmin(@Param('id', ParseIntPipe) id: number) {
+  findOneForAdmin(@Param('id', ParseIdPipe) id: number) {
     return this.productsService.findOneForAdmin(id);
   }
 
@@ -236,7 +236,7 @@ export class ProductsController {
   })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateProductDto) {
+  update(@Param('id', ParseIdPipe) id: number, @Body() dto: UpdateProductDto) {
     return this.productsService.update(id, dto);
   }
 
@@ -248,7 +248,7 @@ export class ProductsController {
   })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id', ParseIdPipe) id: number) {
     return this.productsService.remove(id);
   }
 

@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
-import { WholeNumber } from '../../../pagination/pagination';
+import { MAX_PAGE, WholeNumber } from '../../../pagination/pagination';
 
 export enum ReconciliationStatusFilter {
   UNRESOLVED = 'unresolved',
@@ -26,6 +26,7 @@ export class ReconciliationQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(MAX_PAGE)
   page: number = RECONCILIATION_DEFAULT_PAGE;
 
   @ApiPropertyOptional({

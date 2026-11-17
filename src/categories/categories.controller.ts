@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   UseGuards,
@@ -17,6 +16,7 @@ import { UserRole } from '../users/entities/user-role.enum';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('categories')
 @ApiTags('Catalog - Categories')
@@ -49,10 +49,7 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Update a category', description: 'ADMIN only.' })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateCategoryDto,
-  ) {
+  update(@Param('id', ParseIdPipe) id: number, @Body() dto: UpdateCategoryDto) {
     return this.categoriesService.update(id, dto);
   }
 
@@ -61,7 +58,7 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Delete a category', description: 'ADMIN only.' })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id', ParseIdPipe) id: number) {
     return this.categoriesService.remove(id);
   }
 }

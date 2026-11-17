@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsInt, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsInt, Max, Min } from 'class-validator';
+import { INT_MAX } from '../../validation/limits';
 
 // The most products one collection can hold.
 export const COLLECTION_MAX_PRODUCTS = 200;
@@ -16,5 +17,9 @@ export class ReplaceCollectionProductsDto {
   })
   @IsInt({ each: true, message: 'every product id must be a whole number' })
   @Min(1, { each: true, message: 'every product id must be 1 or more' })
+  @Max(INT_MAX, {
+    each: true,
+    message: `every product id must not be greater than ${INT_MAX}`,
+  })
   productIds!: number[];
 }

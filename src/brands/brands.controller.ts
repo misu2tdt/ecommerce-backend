@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   UseGuards,
@@ -17,6 +16,7 @@ import { UserRole } from '../users/entities/user-role.enum';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('brands')
 @ApiTags('Catalog - Brands')
@@ -49,7 +49,7 @@ export class BrandsController {
   @ApiOperation({ summary: 'Update a brand', description: 'ADMIN only.' })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBrandDto) {
+  update(@Param('id', ParseIdPipe) id: number, @Body() dto: UpdateBrandDto) {
     return this.brandsService.update(id, dto);
   }
 
@@ -58,7 +58,7 @@ export class BrandsController {
   @ApiOperation({ summary: 'Delete a brand', description: 'ADMIN only.' })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id', ParseIdPipe) id: number) {
     return this.brandsService.remove(id);
   }
 }

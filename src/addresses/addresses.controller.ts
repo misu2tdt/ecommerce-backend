@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   UseGuards,
@@ -22,6 +21,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { AddressesService } from './addresses.service';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('addresses')
 @UseGuards(AuthGuard)
@@ -55,7 +55,7 @@ export class AddressesController {
   })
   update(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIdPipe) id: number,
     @Body() dto: UpdateAddressDto,
   ) {
     return this.addressesService.update(user.id, id, dto);
@@ -70,7 +70,7 @@ export class AddressesController {
   })
   remove(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIdPipe) id: number,
   ) {
     return this.addressesService.remove(user.id, id);
   }

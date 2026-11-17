@@ -3,7 +3,6 @@ import {
   Controller,
   HttpCode,
   Param,
-  ParseIntPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -22,6 +21,7 @@ import { CurrentUser } from '../../auth/current-user.decorator';
 import { DemoPaymentsEnabledGuard } from './demo-payments-enabled.guard';
 import { DemoPaymentsService } from './demo-payments.service';
 import { CompleteDemoPaymentDto } from './dto/complete-demo-payment.dto';
+import { ParseIdPipe } from '../../validation/parse-id.pipe';
 
 // The enabled-guard comes first: with PAYMENT_PROVIDER other than demo this
 // route answers 404 before anything else (even before the JWT check).
@@ -66,7 +66,7 @@ export class DemoPaymentsController {
   })
   complete(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('paymentId', ParseIntPipe) paymentId: number,
+    @Param('paymentId', ParseIdPipe) paymentId: number,
     @Body() dto: CompleteDemoPaymentDto,
   ) {
     return this.demoPayments.complete(user.id, paymentId, dto.outcome);

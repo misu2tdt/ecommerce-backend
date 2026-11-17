@@ -4,10 +4,12 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
 import { NormalizeUpper } from '../../catalog/dto-validation';
+import { INT_MAX } from '../../validation/limits';
 
 export class CheckoutCartDto {
   @ApiProperty({
@@ -18,6 +20,7 @@ export class CheckoutCartDto {
   })
   @IsInt()
   @Min(1)
+  @Max(INT_MAX)
   addressId!: number;
 
   @ApiPropertyOptional({

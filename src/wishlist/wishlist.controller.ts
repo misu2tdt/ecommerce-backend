@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +13,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AddWishlistItemDto } from './dto/add-wishlist-item.dto';
 import { WishlistService } from './wishlist.service';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('wishlist')
 @UseGuards(AuthGuard)
@@ -38,7 +38,7 @@ export class WishlistController {
   @ApiOperation({ summary: 'Remove a Product from the wishlist' })
   remove(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId', ParseIdPipe) productId: number,
   ) {
     return this.wishlistService.remove(user.id, productId);
   }

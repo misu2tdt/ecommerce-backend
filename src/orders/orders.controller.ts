@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseIntPipe,
   Post,
   Query,
   Res,
@@ -31,6 +30,7 @@ import {
 } from '../pagination/pagination';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrdersService } from './orders.service';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('orders')
 @UseGuards(AuthGuard)
@@ -90,7 +90,7 @@ export class OrdersController {
   })
   cancel(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIdPipe) id: number,
   ) {
     return this.ordersService.cancelForUser(user.id, id);
   }
@@ -100,7 +100,7 @@ export class OrdersController {
   @ApiOperation({ summary: 'Get an owned Order' })
   findOne(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIdPipe) id: number,
   ) {
     return this.ordersService.findOneForUser(user.id, id);
   }

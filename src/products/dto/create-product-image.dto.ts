@@ -4,10 +4,12 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
 import { Trim } from '../../catalog/dto-validation';
+import { MAX_POSITION } from '../../validation/limits';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductImageDto {
@@ -23,6 +25,7 @@ export class CreateProductImageDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
+  @Max(MAX_POSITION)
   position?: number;
 
   @ApiPropertyOptional({ example: true })

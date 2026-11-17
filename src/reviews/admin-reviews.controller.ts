@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Query,
   Res,
@@ -30,6 +29,7 @@ import {
 import { UserRole } from '../users/entities/user-role.enum';
 import { UpdateReviewVisibilityDto } from './dto/update-review-visibility.dto';
 import { ProductReviewsService } from './product-reviews.service';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('admin/reviews')
 @UseGuards(AuthGuard, RolesGuard)
@@ -71,7 +71,7 @@ export class AdminReviewsController {
     description: 'ADMIN only.',
   })
   setVisibility(
-    @Param('reviewId', ParseIntPipe) reviewId: number,
+    @Param('reviewId', ParseIdPipe) reviewId: number,
     @Body() dto: UpdateReviewVisibilityDto,
   ) {
     return this.reviewsService.setVisibility(reviewId, dto.isVisible);

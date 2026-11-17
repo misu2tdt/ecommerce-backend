@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Query,
   Res,
@@ -32,6 +31,7 @@ import {
 import { UserRole } from '../users/entities/user-role.enum';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
+import { ParseIdPipe } from '../validation/parse-id.pipe';
 
 @Controller('admin/orders')
 @UseGuards(AuthGuard, RolesGuard)
@@ -74,7 +74,7 @@ export class AdminOrdersController {
       'CONFIRMED requested by an admin, or the Order has no succeeded payment.',
   })
   updateStatus(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIdPipe) id: number,
     @Body() dto: UpdateOrderStatusDto,
   ) {
     return this.ordersService.updateStatus(id, dto.status);
@@ -109,7 +109,7 @@ export class AdminOrdersController {
       },
     },
   })
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParseIdPipe) id: number) {
     return this.ordersService.findOneForAdmin(id);
   }
 }

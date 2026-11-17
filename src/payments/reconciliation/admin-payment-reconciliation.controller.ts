@@ -5,7 +5,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseIntPipe,
   Post,
   Query,
   UseGuards,
@@ -30,6 +29,7 @@ import { UserRole } from '../../users/entities/user-role.enum';
 import { ReconciliationQueryDto } from './dto/reconciliation-query.dto';
 import { ResolveReconciliationDto } from './dto/resolve-reconciliation.dto';
 import { PaymentReconciliationService } from './payment-reconciliation.service';
+import { ParseIdPipe } from '../../validation/parse-id.pipe';
 
 const ITEM_EXAMPLE = {
   id: 17,
@@ -104,7 +104,7 @@ export class AdminPaymentReconciliationController {
   })
   resolve(
     @CurrentUser() admin: AuthenticatedUser,
-    @Param('eventId', ParseIntPipe) eventId: number,
+    @Param('eventId', ParseIdPipe) eventId: number,
     @Body() dto: ResolveReconciliationDto,
   ) {
     return this.reconciliationService.resolve(eventId, admin.id, dto.note);
