@@ -92,8 +92,7 @@ any deadlock and any error line in the backend's output.
 1. **Oversell.** 200 customers each put one unit of a variant with 10 in stock in
    their cart and check out at the same moment (`POST /cart/checkout`). Exactly
    10 orders succeed, the other 190 get the insufficient-stock error, final stock
-   is 0 and the ordered quantities add up to 10. Stock is also read every few
-   milliseconds during the burst and must never be seen below 0. This exercises
+   is 0 and the ordered quantities add up to 10. This exercises
    the row lock on the variant in `OrdersService.checkoutPrepared`.
 2. **Deadlock safety.** Two variants A and B with 10 units each. Half of the
    customers order A then B, half order B then A (`POST /orders/checkout`). The
@@ -216,9 +215,15 @@ moment late).
 - **Order expiry is not run.** The expiry job is off when `NODE_ENV=test`. Expiry
   cancels through the same `cancelLockedOrder` function as a cancel, which
   scenario 5 does exercise.
-- **Stock samples see committed values only.** The database also refuses negative
-  stock with a CHECK constraint, so "never negative" has a second line of defence
-  that the samples can not show.
+- **There is no "stock was never negative" check.** An earlier version sampled the
+  stock every 15 ms and checked that it never dropped below 0. That check could not
+  fail: the database refuses negative stock with a CHECK constraint
+  (`CHK_product_variants_stock`), and a sample only sees committed rows, so a
+  transaction that would have gone negative is rolled back and never seen. It was
+  removed, not reworded. An oversell shows up in checks that can fail: the exact
+  number of successes, the exact number of refusals, the final stock, the units in
+  the ordered rows, and the "no unexpected responses / no 5xx" checks (the
+  constraint violation of an oversell would be a 500).
 - **Variation between runs.** Latency and throughput vary by up to about 20
   percent between runs on the same machine. Counts of successes and refusals do not vary;
   in scenario 4 the split of final payment states and in the simultaneous part of

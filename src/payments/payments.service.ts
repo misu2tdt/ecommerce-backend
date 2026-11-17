@@ -66,14 +66,18 @@ export class PaymentsService {
           currency: payment.currency,
           idempotencyKey: payment.idempotencyKey,
         });
-        await this.persistProviderCreation(
+        // The order may have been cancelled or may have expired while the
+        // provider call was in flight. The link is handed out only when the
+        // Payment is still being processed after that call was saved.
+        const stillProcessing = await this.persistProviderCreation(
           payment.id,
           providerResult.providerPaymentId,
         );
-        continuation = {
-          checkoutUrl: providerResult.checkoutUrl,
-          clientData: providerResult.clientData,
-        };
+        if (stillProcessing)
+          continuation = {
+            checkoutUrl: providerResult.checkoutUrl,
+            clientData: providerResult.clientData,
+          };
       } catch (error) {
         if (error instanceof PaymentProviderAmbiguousError)
           await this.markProviderCreationUncertain(payment.id);
@@ -179,9 +183,13 @@ export class PaymentsService {
           PaymentEventProcessingStatus.REQUIRES_RECONCILIATION;
         event.processingMessage =
           'Provider event no longer matches the locked Payment';
-        event.processedAt = new Date();
         await manager.getRepository(PaymentEvent).save(event);
-        return { duplicate: false, event, payment, order: null };
+        return {
+          duplicate: false,
+          event: await this.stampEventProcessed(manager, event.id),
+          payment,
+          order: null,
+        };
       }
 
       const order = await manager.getRepository(Order).findOneOrFail({
@@ -193,10 +201,22 @@ export class PaymentsService {
         await this.processSuccess(manager, payment, order, event);
       else await this.processFailure(manager, payment, event, input);
 
-      event.processedAt = new Date();
       await manager.getRepository(PaymentEvent).save(event);
-      return { duplicate: false, event, payment, order };
+      return {
+        duplicate: false,
+        event: await this.stampEventProcessed(manager, event.id),
+        payment,
+        order,
+      };
     });
+  }
+
+  // processedAt is written by the database clock, like createdAt, so it does not
+  // depend on the time zone of the Node.js process (see timestamp-convention).
+  private async stampEventProcessed(manager: EntityManager, eventId: number) {
+    const repository = manager.getRepository(PaymentEvent);
+    await repository.update({ id: eventId }, { processedAt: () => 'now()' });
+    return repository.findOneByOrFail({ id: eventId });
   }
 
   private async establishAttempt(
@@ -325,19 +345,22 @@ export class PaymentsService {
     });
   }
 
+  // Whether the Payment is still PROCESSING once the provider's answer is saved.
+  // False when it was cancelled (or otherwise finished) in the meantime.
   private async persistProviderCreation(
     paymentId: number,
     providerPaymentId: string,
-  ) {
-    await this.dataSource.transaction(async (manager) => {
+  ): Promise<boolean> {
+    return this.dataSource.transaction(async (manager) => {
       const payment = await manager.getRepository(Payment).findOneOrFail({
         where: { id: paymentId },
         lock: { mode: 'pessimistic_write' },
       });
-      if (payment.status !== PaymentStatus.PROCESSING) return;
+      if (payment.status !== PaymentStatus.PROCESSING) return false;
       if (payment.providerPaymentId !== providerPaymentId)
         throw new ConflictException('Payment provider identity mismatch');
       await manager.getRepository(Payment).save(payment);
+      return payment.status === PaymentStatus.PROCESSING;
     });
   }
 
@@ -388,11 +411,20 @@ export class PaymentsService {
       return;
     }
     payment.status = PaymentStatus.SUCCEEDED;
-    payment.succeededAt = new Date();
     payment.failureCode = null;
     payment.failureMessage = null;
     order.status = OrderStatus.CONFIRMED;
-    await manager.getRepository(Payment).save(payment);
+    const paymentRepository = manager.getRepository(Payment);
+    await paymentRepository.save(payment);
+    // succeededAt comes from the database clock, like createdAt (see
+    // timestamp-convention); the Node.js clock and zone play no part.
+    await paymentRepository.update(
+      { id: payment.id },
+      { succeededAt: () => 'now()' },
+    );
+    payment.succeededAt = (
+      await paymentRepository.findOneByOrFail({ id: payment.id })
+    ).succeededAt;
     await manager.getRepository(Order).save(order);
   }
 

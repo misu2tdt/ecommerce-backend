@@ -180,15 +180,27 @@ parameters, is authoritative.
 Visitors of the public demo cannot pay with MoMo, so the backend can run a
 stand-in provider. **No real money is involved.** To turn it on:
 
-1. In Render, set `PAYMENT_PROVIDER=demo`.
+1. In Render, set `PAYMENT_PROVIDER=demo`. [render.yaml](../render.yaml) sets
+   it explicitly, so a service created from the Blueprint starts in demo mode;
+   check that the service in the dashboard has it too.
 2. Redeploy the backend manually. The setting is read at startup.
 3. Check the Render log for `DEMO PAYMENTS ENABLED, no real money`.
 
 No migration is needed: the existing `payments.provider` column holds `demo`
-and nothing in the schema had to change. Keep the `MOMO_*` values as they are;
-the IPN route stays in place but is not used by demo payments.
+and nothing in the schema had to change. The `MOMO_*` values are still read at
+startup, so keep them; the Blueprint's `deployment-disabled` values are
+placeholders that nothing uses in demo mode. The IPN route stays in place, but no
+payment of provider `momo` exists, so a callback finds nothing to confirm.
 
-To go back to MoMo, remove the variable (or set `momo`) and redeploy. A demo
+**The API refuses to start in production in momo mode (the default) while a
+`MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY` or
+`MOMO_IDENTITY_SECRET` looks like a placeholder** (it contains `disabled`,
+`placeholder`, `changeme`, `example` and similar). The log names the variable,
+never its value. So a service that lost `PAYMENT_PROVIDER` fails loudly instead
+of running with a signing key that is public in this repository.
+
+To go back to MoMo, put real credentials in all four variables, then remove
+`PAYMENT_PROVIDER` (or set `momo`) and redeploy. A demo
 payment can only be finished while `PAYMENT_PROVIDER=demo`; the endpoint
 answers 404 otherwise. How it behaves, and the request and response shapes, are
 in [payments.md](./payments.md).

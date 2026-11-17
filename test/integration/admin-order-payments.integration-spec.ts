@@ -4,7 +4,10 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
+import { Order } from '../../src/orders/entities/order.entity';
 import { OrdersService } from '../../src/orders/orders.service';
+import { PaymentEventType } from '../../src/payments/entities/payment-event-type.enum';
+import { PaymentsService } from '../../src/payments/payments.service';
 import { ProductStatus } from '../../src/products/entities/product-status.enum';
 import { Product } from '../../src/products/entities/product.entity';
 import { UserRole } from '../../src/users/entities/user-role.enum';
@@ -121,23 +124,13 @@ describe('Admin order detail with payments (PostgreSQL)', () => {
   describe('the payments array', () => {
     it("shows the payments of a customer's order to an admin who does not own it, newest first", async () => {
       const { order } = await checkout(owner, 'payments-list');
-      const oldest = await insertPayment(order.id, 'oldest', {
-        status: 'failed',
-        createdAt: '2026-03-01T08:00:00Z',
-      });
-      const middle = await insertPayment(order.id, 'middle', {
-        status: 'cancelled',
-        createdAt: '2026-03-01T09:00:00Z',
-      });
-      const newest = await insertPayment(order.id, 'newest', {
-        status: 'succeeded',
-        createdAt: '2026-03-01T10:00:00Z',
-        succeededAt: '2026-03-01T10:05:00Z',
-      });
-      await dataSource.query(
-        `UPDATE "orders" SET "status" = 'confirmed' WHERE "id" = $1`,
-        [order.id],
-      );
+      // Three attempts through the real payment code: the first two end failed
+      // and cancelled, the third succeeds and confirms the order.
+      const before = Date.now();
+      const oldest = await payThroughRealCode(order.id, 'oldest', 'failed');
+      const middle = await payThroughRealCode(order.id, 'middle', 'cancelled');
+      const newest = await payThroughRealCode(order.id, 'newest', 'succeeded');
+      const after = Date.now();
 
       const body = await getOrder(order.id);
 
@@ -154,12 +147,19 @@ describe('Admin order detail with payments (PostgreSQL)', () => {
         currency: 'VND',
         status: 'succeeded',
       });
-      // Timestamps are stored without a zone, so only the gap is compared (the
-      // absolute time depends on the zone of the test process).
+      // Both times come from the database clock, so the gap is a few moments
+      // whatever the time zone of this process, and both are the real time.
       const newestView = body.payments![0];
-      expect(
-        Date.parse(newestView.succeededAt!) - Date.parse(newestView.createdAt),
-      ).toBe(5 * 60_000);
+      const toSuccess =
+        Date.parse(newestView.succeededAt!) - Date.parse(newestView.createdAt);
+      expect(toSuccess).toBeGreaterThan(0);
+      expect(toSuccess).toBeLessThan(60_000);
+      expect(Date.parse(newestView.createdAt)).toBeGreaterThanOrEqual(
+        before - 1000,
+      );
+      expect(Date.parse(newestView.succeededAt!)).toBeLessThanOrEqual(
+        after + 1000,
+      );
       expect(Date.parse(newestView.createdAt)).toBeGreaterThan(
         Date.parse(body.payments![1].createdAt),
       );
@@ -385,6 +385,35 @@ describe('Admin order detail with payments (PostgreSQL)', () => {
       items: [{ variantId: variant.id, quantity: 2 }],
     });
     return { order };
+  }
+
+  // A payment attempt the way production makes one: created through the payment
+  // service, then finished by a provider event through processEvent (the code a
+  // MoMo IPN and the demo completion both use).
+  async function payThroughRealCode(
+    orderId: number,
+    suffix: string,
+    outcome: 'failed' | 'cancelled' | 'succeeded',
+  ): Promise<number> {
+    const view = await app
+      .get(PaymentsService)
+      .createForOrder(
+        (await dataSource.getRepository(Order).findOneByOrFail({ id: orderId }))
+          .userId,
+        orderId,
+        `order-payments-real-${orderId}-${suffix}`,
+      );
+    await app.get(PaymentsService).processEvent({
+      provider: 'fake',
+      providerEventId: `real-${view.id}-${outcome}`,
+      providerPaymentId: `fake_payment_${view.id}`,
+      eventType:
+        outcome === 'succeeded'
+          ? PaymentEventType.SUCCEEDED
+          : PaymentEventType.FAILED,
+      ...(outcome === 'cancelled' ? { cancelled: true } : {}),
+    });
+    return view.id;
   }
 
   async function insertPayment(

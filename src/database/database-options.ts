@@ -5,6 +5,7 @@ import {
   getDatabaseUrl,
   getRequiredConfig,
 } from '../config/environment';
+import { applyTimestampConvention } from './timestamp-convention';
 
 type PostgresDataSourceOptions = Extract<
   DataSourceOptions,
@@ -24,6 +25,9 @@ const MANAGED_DATABASE_SSL = {
 } as const;
 
 export function createDatabaseOptions(reader: ConfigReader): DatabaseOptions {
+  // Every data source of the app, the seeds and the tests is built from these
+  // options, so this is the one place that sets how times are read and written.
+  applyTimestampConvention();
   const url = getDatabaseUrl(reader);
   if (url) {
     return {

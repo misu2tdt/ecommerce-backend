@@ -92,3 +92,30 @@ runtime settings the application validates on startup (`JWT_SECRET`,
 CI, is never overwritten.
 
 The test suite runs migrations and clears data only inside `ecommerce_test`.
+
+## Time stamps and time zones
+
+Almost every time column is `timestamp without time zone`. One clock produces
+them all, the **database's**: `createdAt` and `updatedAt` default to `now()`, and
+the application writes `succeededAt`, `processedAt` and `resolvedAt` with `now()`
+too, never with the Node.js clock. The Node.js driver reads such a column, and
+writes a `Date` into it, **as UTC**, whatever the time zone of the Node.js
+process (`src/database/timestamp-convention.ts`, applied wherever a data source
+is built). So running the API on a machine in Vietnam against a UTC database
+shows the right times.
+
+This is the right reading only when the database session runs on UTC, which is
+the default of the Docker image used here and of Neon. The API logs a warning at
+startup when it does not. No connection option is used to force the zone,
+because a pooled endpoint may reject start-up options.
+
+Not changed on purpose: the order expiry job and the analytics SQL convert the
+instant into the session zone (`current_setting('TimeZone')`), so they were
+already correct in any zone; the coupon windows `startsAt` and `endsAt` are
+`timestamp with time zone`. Moving the other columns to `timestamp with time zone`
+would remove the UTC assumption, but it needs a migration and is a separate
+decision.
+
+`test/integration/time-convention.integration-spec.ts` runs the real HTTP API,
+payment services and expiry job in separate Node.js processes with
+`TZ=Asia/Ho_Chi_Minh` and `TZ=UTC`.

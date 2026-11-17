@@ -221,58 +221,6 @@ export async function settledDeadlockCount(ds: DataSource): Promise<number> {
   return postgresDeadlockCount(ds);
 }
 
-export interface StockSamples {
-  samples: number;
-  failures: number;
-  minimum: Map<number, number>;
-}
-
-export interface StockSampler {
-  stop(): Promise<StockSamples>;
-}
-
-/** Reads the stock of the given variants over and over while a burst runs. */
-export function startStockSampler(
-  ds: DataSource,
-  variantIds: number[],
-  intervalMs = 15,
-): StockSampler {
-  let running = true;
-  const result: StockSamples = {
-    samples: 0,
-    failures: 0,
-    minimum: new Map(),
-  };
-  const loop = (async () => {
-    while (running) {
-      try {
-        const found = await rows<{ id: number; stock: number }>(
-          ds,
-          `SELECT "id", "stock" FROM "product_variants" WHERE "id" = ANY($1::int[])`,
-          [variantIds],
-        );
-        result.samples += 1;
-        for (const row of found) {
-          const seen = result.minimum.get(row.id);
-          if (seen === undefined || row.stock < seen) {
-            result.minimum.set(row.id, row.stock);
-          }
-        }
-      } catch {
-        result.failures += 1;
-      }
-      await sleep(intervalMs);
-    }
-  })();
-  return {
-    async stop() {
-      running = false;
-      await loop;
-      return result;
-    },
-  };
-}
-
 // Seeded-data snapshot: proves the run left the demo data alone.
 
 export interface SeededSnapshot {

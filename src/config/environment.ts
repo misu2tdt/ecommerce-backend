@@ -136,6 +136,31 @@ export function getOrderPaymentWindowMinutes(reader: ConfigReader): number {
   return minutes;
 }
 
+// The MoMo values the API signs and checks payments with. In production, in momo
+// mode, a placeholder (the "disabled" values of a Blueprint or a copied example)
+// would mean a signing key that is public, so the API refuses to start. The value
+// is never echoed back, only the name of the variable.
+const MOMO_CREDENTIAL_KEYS = [
+  'MOMO_PARTNER_CODE',
+  'MOMO_ACCESS_KEY',
+  'MOMO_SECRET_KEY',
+  'MOMO_IDENTITY_SECRET',
+] as const;
+const PLACEHOLDER_CREDENTIAL =
+  /disabled|placeholder|change-?me|replace-?me|example|your[-_ ]|ci-only/i;
+
+export function assertRealMomoCredentials(reader: ConfigReader): void {
+  for (const key of MOMO_CREDENTIAL_KEYS) {
+    // A missing value is reported by the MoMo configuration itself at startup.
+    const value = reader(key);
+    if (typeof value === 'string' && PLACEHOLDER_CREDENTIAL.test(value)) {
+      throw new Error(
+        `${key} is still a placeholder. In production, PAYMENT_PROVIDER=momo needs real MoMo credentials; use PAYMENT_PROVIDER=demo for a demo without real payments.`,
+      );
+    }
+  }
+}
+
 export function validateRuntimeEnvironment(
   environment: Record<string, unknown>,
 ): RuntimeEnvironment {
@@ -153,6 +178,9 @@ export function validateRuntimeEnvironment(
   getJwtExpiration(readConfig);
   getOrderPaymentWindowMinutes(readConfig);
   const paymentProvider = getPaymentProviderMode(readConfig);
+  if (nodeEnvironment === 'production' && paymentProvider === 'momo') {
+    assertRealMomoCredentials(readConfig);
+  }
 
   return {
     nodeEnvironment,

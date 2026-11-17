@@ -1,7 +1,9 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
+import { warnIfSessionTimeZoneIsNotUtc } from './database/timestamp-convention';
 import { validateRuntimeEnvironment } from './config/environment';
 import { configureHttpSecurity } from './config/http-security';
 import { configureSwagger } from './docs/swagger';
@@ -9,6 +11,7 @@ import { configureSwagger } from './docs/swagger';
 async function bootstrap() {
   const runtime = validateRuntimeEnvironment(process.env);
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  await warnIfSessionTimeZoneIsNotUtc(app.get(DataSource));
   configureHttpSecurity(app, runtime);
   app.useGlobalPipes(
     new ValidationPipe({

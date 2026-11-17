@@ -115,6 +115,91 @@ describe('runtime environment validation', () => {
   });
 });
 
+describe('MoMo credentials in production', () => {
+  const core = {
+    NODE_ENV: 'production',
+    PORT: '3000',
+    FRONTEND_ORIGIN: 'https://store.example.com',
+    DB_HOST: 'database',
+    DB_PORT: '5432',
+    DB_USERNAME: 'app',
+    DB_PASSWORD: 'secret',
+    DB_NAME: 'ecommerce',
+    JWT_SECRET: 'secret',
+    JWT_EXPIRES_IN: '15m',
+  };
+  const real = {
+    MOMO_PARTNER_CODE: 'MOMO1234',
+    MOMO_ACCESS_KEY: 'k8Jd02mXq',
+    MOMO_SECRET_KEY: 'Zp9sLw41TnQe7vYb',
+    MOMO_IDENTITY_SECRET: 'rA5hC8uNf2Gx0Wd3',
+  };
+  const disabled = {
+    MOMO_PARTNER_CODE: 'deployment-disabled',
+    MOMO_ACCESS_KEY: 'deployment-disabled',
+    MOMO_SECRET_KEY: 'deployment-disabled',
+    MOMO_IDENTITY_SECRET: 'q7Hn3Vb9Ld2Ks8Ym',
+  };
+
+  it('refuses to start in momo mode with the public "disabled" signing key', () => {
+    for (const provider of [undefined, 'momo']) {
+      expect(() =>
+        validateRuntimeEnvironment({
+          ...core,
+          ...disabled,
+          PAYMENT_PROVIDER: provider,
+        }),
+      ).toThrow('MOMO_PARTNER_CODE is still a placeholder');
+    }
+    expect(() =>
+      validateRuntimeEnvironment({
+        ...core,
+        ...real,
+        MOMO_SECRET_KEY: 'deployment-disabled',
+      }),
+    ).toThrow('MOMO_SECRET_KEY is still a placeholder');
+  });
+
+  it('never echoes the rejected value', () => {
+    let message = '';
+    try {
+      validateRuntimeEnvironment({
+        ...core,
+        ...real,
+        MOMO_SECRET_KEY: 'my-example-secret-9',
+      });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain('MOMO_SECRET_KEY');
+    expect(message).not.toContain('my-example-secret-9');
+  });
+
+  it('starts in momo mode with real-looking credentials', () => {
+    expect(validateRuntimeEnvironment({ ...core, ...real })).toMatchObject({
+      paymentProvider: 'momo',
+    });
+  });
+
+  it('starts in demo mode with the Blueprint placeholders, which are not used there', () => {
+    expect(
+      validateRuntimeEnvironment({
+        ...core,
+        ...disabled,
+        PAYMENT_PROVIDER: 'demo',
+      }),
+    ).toMatchObject({ paymentProvider: 'demo' });
+  });
+
+  it('does not check the credentials outside production', () => {
+    for (const NODE_ENV of ['development', 'test']) {
+      expect(() =>
+        validateRuntimeEnvironment({ ...core, ...disabled, NODE_ENV }),
+      ).not.toThrow();
+    }
+  });
+});
+
 describe('payment provider mode configuration', () => {
   it('defaults to momo when PAYMENT_PROVIDER is absent or blank', () => {
     expect(getPaymentProviderMode(() => undefined)).toBe('momo');

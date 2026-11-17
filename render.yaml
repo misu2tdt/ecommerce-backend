@@ -24,6 +24,12 @@ services:
         value: 15m
       - key: PAYMENT_CURRENCY
         value: VND
+      # The public portfolio demo takes no real money. The default (momo) would
+      # need real MoMo credentials; in production the API refuses to start in momo
+      # mode with the placeholder values below.
+      - key: PAYMENT_PROVIDER
+        value: demo
+      # Placeholders: read at startup but not used in demo mode.
       - key: MOMO_PARTNER_CODE
         value: deployment-disabled
       - key: MOMO_ACCESS_KEY

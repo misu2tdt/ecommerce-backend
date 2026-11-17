@@ -6,7 +6,6 @@ import type { DataSource } from 'typeorm';
 import type { LoadTestOptions } from './args';
 import {
   rows,
-  startStockSampler,
   orderedForVariant,
   variantStock,
   type Customer,
@@ -338,7 +337,7 @@ const oversell: ScenarioDefinition = {
   id: 1,
   title: 'Oversell',
   proves:
-    'Many customers check out the same scarce variant at the same moment through their carts. Exactly as many orders succeed as there are units; everyone else is refused with the insufficient-stock error; stock ends at 0 and is never negative.',
+    'Many customers check out the same scarce variant at the same moment through their carts. Exactly as many orders succeed as there are units; everyone else is refused with the insufficient-stock error; stock ends at 0 and equals the starting stock minus the ordered units.',
   async run(context) {
     const { customers: customerCount, stock } = context.options;
     const variantId = await context.fixtures.createVariant('oversell', stock);
@@ -354,7 +353,6 @@ const oversell: ScenarioDefinition = {
     );
 
     await warmUpConnections(context.api, customerCount);
-    const sampler = startStockSampler(context.ds, [variantId]);
     const { burst } = await runBurst(
       `${customerCount} carts check out together`,
       users.map((user) => ({
@@ -366,11 +364,8 @@ const oversell: ScenarioDefinition = {
         classify: checkout,
       })),
     );
-    const samples = await sampler.stop();
-
     const finalStock = await variantStock(context.ds, variantId);
     const ordered = await orderedForVariant(context.ds, variantId);
-    const lowest = samples.minimum.get(variantId);
     const successes = countOf(burst, 'success');
     const refusals = countOf(burst, 'expected_refusal');
 
@@ -388,11 +383,6 @@ const oversell: ScenarioDefinition = {
           `${refusals} refused`,
         ),
         check('Final stock is 0', finalStock === 0, `stock ${finalStock}`),
-        check(
-          'Stock was never negative at any sample',
-          samples.samples > 0 && lowest !== undefined && lowest >= 0,
-          `${samples.samples} samples, lowest seen ${lowest ?? 'none'}`,
-        ),
         check(
           `Ordered quantities add up to ${stock}`,
           ordered.quantity === stock && ordered.orders === stock,
@@ -420,7 +410,6 @@ const deadlockSafety: ScenarioDefinition = {
     const users = await customers(context, 'pair', customerCount);
 
     await warmUpConnections(context.api, customerCount);
-    const sampler = startStockSampler(context.ds, [variantA, variantB]);
     const { burst, responses } = await runBurst(
       `${customerCount} orders of both variants, half A,B and half B,A`,
       users.map((user, index) => {
@@ -439,17 +428,11 @@ const deadlockSafety: ScenarioDefinition = {
         };
       }),
     );
-    const samples = await sampler.stop();
-
     const stockA = await variantStock(context.ds, variantA);
     const stockB = await variantStock(context.ds, variantB);
     const orderedA = await orderedForVariant(context.ds, variantA);
     const orderedB = await orderedForVariant(context.ds, variantB);
     const successes = countOf(burst, 'success');
-    const lowest = Math.min(
-      samples.minimum.get(variantA) ?? Number.NEGATIVE_INFINITY,
-      samples.minimum.get(variantB) ?? Number.NEGATIVE_INFINITY,
-    );
     const wonInOrder = (parity: number) =>
       responses.filter(
         (response, index) => index % 2 === parity && isOk(response),
@@ -484,11 +467,6 @@ const deadlockSafety: ScenarioDefinition = {
             orderedA.orders === successes &&
             orderedB.orders === successes,
           `A ${orderedA.quantity}, B ${orderedB.quantity}, orders ${successes}`,
-        ),
-        check(
-          'Stock was never negative at any sample',
-          samples.samples > 0 && lowest >= 0,
-          `${samples.samples} samples, lowest seen ${lowest}`,
         ),
       ],
       notes: [

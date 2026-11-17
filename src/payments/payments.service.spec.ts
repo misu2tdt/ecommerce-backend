@@ -37,7 +37,16 @@ describe('PaymentsService state rules', () => {
   });
 
   it('atomically succeeds Payment and confirms its pending Order', async () => {
-    const paymentRepo = { save: jest.fn(async (value) => value) };
+    // succeededAt is written by the database clock, so the mock plays the
+    // database: it accepts the update and answers the re-read with its own time.
+    const stampedByDatabase = new Date('2026-11-17T03:00:00.000Z');
+    const paymentRepo = {
+      save: jest.fn(async (value) => value),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      findOneByOrFail: jest
+        .fn()
+        .mockResolvedValue({ succeededAt: stampedByDatabase }),
+    };
     const orderRepo = { save: jest.fn(async (value) => value) };
     const manager = managerWith(paymentRepo, orderRepo);
     const payment = paymentFixture();
@@ -54,8 +63,25 @@ describe('PaymentsService state rules', () => {
     >(service, 'processSuccess')(manager, payment, order, event);
 
     expect(payment.status).toBe(PaymentStatus.SUCCEEDED);
-    expect(payment.succeededAt).toBeInstanceOf(Date);
     expect(order.status).toBe(OrderStatus.CONFIRMED);
+    // The time is set by the database's now(), not by the Node.js clock.
+    expect(paymentRepo.update).toHaveBeenCalledTimes(1);
+    expect(paymentRepo.update).toHaveBeenCalledWith(
+      { id: payment.id },
+      { succeededAt: expect.any(Function) },
+    );
+    const [, changes] = paymentRepo.update.mock.calls[0] as [
+      unknown,
+      { succeededAt: () => string },
+    ];
+    expect(changes.succeededAt()).toBe('now()');
+    expect(paymentRepo.findOneByOrFail).toHaveBeenCalledWith({
+      id: payment.id,
+    });
+    expect(payment.succeededAt).toBe(stampedByDatabase);
+    expect(paymentRepo.save.mock.invocationCallOrder[0]).toBeLessThan(
+      paymentRepo.update.mock.invocationCallOrder[0],
+    );
     expect(paymentRepo.save).toHaveBeenCalledWith(payment);
     expect(orderRepo.save).toHaveBeenCalledWith(order);
   });
