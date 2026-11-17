@@ -55,6 +55,7 @@ The API is one NestJS application with a module per area:
 | `carts`, `addresses`, `wishlist`, `reviews`, `promotions` | Shopping features, coupons, verified-purchase reviews |
 | `orders` | Checkout, order lifecycle, cancellation, expiry of unpaid orders |
 | `payments` | Payment attempts, MoMo and demo providers, one event pipeline, admin reconciliation |
+| `analytics` | Read-only admin reporting: revenue, orders, cancellations, new customers, revenue by day (in the requested time zone), orders by status, top products and categories; one SQL aggregation per endpoint (see [docs/analytics.md](./docs/analytics.md)) |
 | `config`, `pagination`, `database` | Environment validation, HTTP security and rate limits, paging, migrations and seeds |
 
 Swagger UI is served at `/api/docs` outside production (`SWAGGER_ENABLED` turns
@@ -219,8 +220,8 @@ numbers, their reasons and the limits of the design are in
 
 | Suite | Command | Count (latest run) | What it covers |
 | --- | --- | --- | --- |
-| Unit | `npm test` | 782 tests, 71 suites | Pure logic, guards, DTO validation, services with mocks |
-| Integration | `npm run test:integration` | 383 tests, 34 suites | Real PostgreSQL: checkout and stock, payments and reconciliation, expiry, migrations, seeds, rate limiting, pagination, product search and its index |
+| Unit | `npm test` | 890 tests, 79 suites | Pure logic, guards, DTO validation, services with mocks |
+| Integration | `npm run test:integration` | 448 tests, 36 suites | Real PostgreSQL: checkout and stock, payments and reconciliation, expiry, migrations, seeds, seeded order history, rate limiting, pagination, product search and its index, admin analytics |
 | Database safety | `npm run test:database-safety` | 7 tests | The guards that keep tests off any other database |
 | End to end | `npm run test:e2e` | 1 test | The application boots and answers |
 
@@ -273,6 +274,8 @@ Useful commands:
 | --- | --- |
 | `npm run seed:demo` | Idempotent demo catalog, accounts, two sample collections and a delivered order (development database only) |
 | `npm run seed:demo:catalog` | Catalog expansion batch 1 on top of the base demo catalog: 44 more products, 2 categories, 4 brands, 6 collections, 2 coupons; insert-only (development database only; run `seed:demo` first) |
+| `npm run seed:demo:history` | Synthetic sales history on top of the catalog: 40 customers who cannot log in, 400 orders over 90 days with payments, reconciliation events and 80 reviews; insert-only and idempotent (development database only; see [docs/demo-data.md](./docs/demo-data.md#seeded-order-history)) |
+| `npm run analytics:explain` | Measures the analytics statements on scratch orders, with and without candidate indexes; results in [docs/analytics.md](./docs/analytics.md). Isolated test database only |
 | `npm run images:upload -- --dir <folder> --catalog all --dry-run` | Check the image folder for the base catalog and the catalog expansion (139 product images) without any network call |
 | `npm run demo:restock -- --dry-run` | Show how a refill of demo stock would change it, then run without the flag |
 | `npm run test:integration` | Needs `.env.test` and `ECOMMERCE_TEST_DB_PASSWORD` in the shell |

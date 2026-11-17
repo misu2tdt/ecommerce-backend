@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { BrandsModule } from './brands/brands.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -65,6 +66,7 @@ import { PromotionsModule } from './promotions/promotions.module';
     PaymentsModule,
     PromotionsModule,
     CollectionsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

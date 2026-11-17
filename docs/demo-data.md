@@ -185,6 +185,123 @@ back, use the database provider's point-in-time restore, or restore a Neon branc
 made before the run (create the branch first, then run the seed against the main
 branch).
 
+## Seeded order history
+
+A third, separate seed adds a synthetic sales history, so the admin dashboards and the
+[analytics API](./analytics.md) have something to show. It lives in
+`src/database/seeds/order-history/`. The base seed, the catalog expansion and their
+tests are unchanged.
+
+**What it creates** (counts are exact; the content is generated from a seeded random
+generator, so a given catalog always gets the same history):
+
+| Entity | Count | Notes |
+| --- | --- | --- |
+| Customers | 40 | `first.last@demo-history.example.com` (a subdomain of the reserved example.com), mixed Vietnamese and international names, one default address each |
+| Orders | 400 over the last 90 days | more on weekends (weights 1.5 for Saturday and Sunday), a gentle upward trend (+60% from the oldest day to today), evening peak |
+| Statuses | 32 cancelled (8%), 6 pending, the rest by age | delivered 85%, a few shipped, processing or confirmed among the newest |
+| Baskets | 1 to 4 distinct active products | real variants at their current price, quantity 1 to 3 |
+| Coupons | about 20% of orders | only codes that exist (`WELCOME10`, `STYLE50`, `TET2027`, `RAINY100`), priced by the same calculator checkout uses |
+| Payments | about 400 | provider `demo`, `VND`; about 6% of paid orders have a declined first attempt then a successful retry |
+| Payment events | about 400 | a processed `succeeded` event for every paid order, `failed` for declined attempts |
+| Reconciliation | 4 unresolved, 2 resolved | see below |
+| Reviews | 80 | skewed to 4 and 5 stars, short English texts, no emojis |
+
+**Pricing.** Checkout has no shipping fee, so an order's total is
+`subtotal - discount`, where `subtotal` is the sum of `price x quantity` and the
+discount comes from the checkout's own calculator (percentage with its cap, or a fixed
+amount, never below zero payable). The order carries the coupon's code, type and value
+as it was, like a real order.
+
+**Payments follow the status.** Confirmed, processing, shipped and delivered orders
+have exactly one succeeded payment for the order's total, with `succeededAt` after the
+order. A cancelled order has no succeeded or active payment: it expired (a cancelled
+payment or none), was cancelled by the customer, or had its payment declined. Pending
+orders (created in the last 28 minutes, inside the 30 minute payment window) have no
+payment yet or one `processing` payment. The database's one-active-payment-per-order
+index holds for every order. An old pending order is never seeded: the expiry job
+would cancel it.
+
+**Reconciliation events.** They are the two ways the payment code parks a late
+provider callback for a human: a success that arrives after the order expired (the
+order and payment stay cancelled; suggested action "refund or manually fulfil") and a
+failure that arrives after the payment had succeeded. Two of each are still open, one
+of each has been handled with a note. A handled event records the first ADMIN account
+of the database as the person who resolved it (no admin: no person is recorded, which
+the table allows). The event ids follow the demo provider (`demo:<paymentId>:success`),
+so a callback replay would be recognised as the same event.
+
+**Reviews** come only from a customer who has a delivered order that held the product,
+once per product (the table's unique key), written one to fourteen days after the
+delivery.
+
+**Time stamps.** `createdAt` and the other time stamp columns are `timestamp without
+time zone`, filled by the database clock in the session time zone of the connection
+(the order expiry job reads them the same way). The seed writes every time stamp as
+the instant expressed in the session time zone of its own connection, so it matches
+rows the app writes whatever that zone is (tested under UTC and `Asia/Tokyo`). The
+analytics API reads them the same way and converts to the requested zone.
+
+**Stock.** The history is background, so the seed does not change stock for delivered,
+shipped, processing, confirmed or cancelled orders. There is no stock movement table
+in this model (stock is a counter on the variant that checkout decrements and
+cancellation restores), so nothing is written that could disagree with it. One
+deliberate exception: the 6 pending orders reserve their units, as a real checkout
+would, because the expiry job gives the units of a cancelled order back. Without
+the reservation, the job would add units that were never taken and stock would end up
+higher than before the seed. The plan only picks variants that have enough stock and
+the update refuses to go below zero. This is tested, including that expiring the
+pending orders returns stock exactly to its value before the seed.
+
+**Customers can never log in.** Every account shares one bcrypt hash of a random secret
+that is created in memory, used once and discarded, so no password matches it. No admin
+is created or changed, and no existing row is touched.
+
+**Idempotency.** The marker is the customers' email domain
+(`demo-history.example.com`). A rerun finds them, adds nothing and prints "Order history
+is already seeded; nothing was added." with the existing counts. Two runs at the same
+time are serialised with an advisory lock, so exactly one seeds. Everything runs in one
+transaction and a check at the end compares the database with the plan; a failure
+leaves nothing behind. If payments with the seed's key prefix exist but the customers
+are gone (removed by hand), it stops instead of writing over them.
+
+**Commands** (run from `ecommerce-backend`):
+
+```powershell
+npm.cmd run seed:demo:history              # development database (ecommerce_dev) only
+npm.cmd run build                          # production: build first
+npm.cmd run seed:demo:history:production   # needs NODE_ENV=production,
+                                           # PRODUCTION_DEMO_SEED_CONFIRM and
+                                           # PRODUCTION_DEMO_SEED_DATABASE
+```
+
+It needs the base demo catalog first (it builds orders from every active product, so
+the catalog expansion makes them richer); without active products it stops with a
+message and writes nothing. There is no npm script for the test target: the integration
+tests call it directly.
+
+**Production steps for the public demo** (do these only on purpose; nothing here is run
+by a deploy):
+
+1. Make sure the base seed (and, if wanted, the catalog expansion) is already in the
+   database. Create a Neon branch or restore point first: the seed has no undo command.
+2. In a trusted local or CI shell on the exact revision: `npm ci --include=dev`, then
+   `npm run build`.
+3. Set `NODE_ENV=production`, `DATABASE_URL` (Neon),
+   `PRODUCTION_DEMO_SEED_CONFIRM=SEED_PORTFOLIO_DEMO` and
+   `PRODUCTION_DEMO_SEED_DATABASE` to the exact database name in the URL.
+4. `npm run seed:demo:history:production`. Read the counts it prints: 40 customers, 400
+   orders (32 cancelled, 6 pending), 80 reviews, and 4 unresolved plus 2 resolved
+   reconciliation events.
+5. Check the admin pages: orders, the reconciliation list (4 unresolved) and reviews.
+   The 6 pending orders cancel themselves after about 30 minutes and release their
+   stock.
+6. Running it again is harmless: it reports "already seeded".
+
+The history is dated relative to the moment it runs, so run it shortly before showing
+the demo if "the last 7 days" should look busy. To go back, restore the Neon branch
+made in step 1.
+
 ## Placeholder images for batch 1
 
 Until the final pictures exist, `npm run images:placeholders` draws a
