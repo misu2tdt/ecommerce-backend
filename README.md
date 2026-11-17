@@ -278,6 +278,7 @@ Useful commands:
 | `npm run analytics:explain` | Measures the analytics statements on scratch orders, with and without candidate indexes; results in [docs/analytics.md](./docs/analytics.md). Isolated test database only |
 | `npm run images:upload -- --dir <folder> --catalog all --dry-run` | Check the image folder for the base catalog and the catalog expansion (139 product images) without any network call |
 | `npm run demo:restock -- --dry-run` | Show how a refill of demo stock would change it, then run without the flag |
+| `npm run typecheck` | `tsc --noEmit` over the whole project, including `test/` and `scripts/`, exactly as CI runs it. `npm run build` skips those folders (`tsconfig.build.json`), so run this before every push; lint and build alone miss errors such as a duplicate import in a spec |
 | `npm run test:integration` | Needs `.env.test` and `ECOMMERCE_TEST_DB_PASSWORD` in the shell |
 | `npm run loadtest:concurrency` | Concurrency check of ordering and payments (200 customers racing for 10 units, opposite lock orders, repeated payment requests, late completions); results in [docs/load-test-results.md](./docs/load-test-results.md), how to run it in [docs/concurrency-check.md](./docs/concurrency-check.md). Isolated test database only; not part of CI |
 | `npm run images:placeholders` | Generate neutral placeholder JPGs for the batch 1 products and banners into a folder outside the repo (see [docs/demo-data.md](./docs/demo-data.md)) |
