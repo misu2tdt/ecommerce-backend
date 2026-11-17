@@ -3,392 +3,1101 @@
     {
       "productSlug": "active-training-7-inch-shorts",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215331/evergreen/demo/active-training-7-inch-shorts__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909240/evergreen/demo/active-training-7-inch-shorts__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "active-training-7-inch-shorts",
       "colorSlug": "navy",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215331/evergreen/demo/active-training-7-inch-shorts__navy.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909215/evergreen/demo/active-training-7-inch-shorts__navy.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "bamboo-fiber-boxer-briefs-3-pack",
       "colorSlug": "assorted",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215337/evergreen/demo/bamboo-fiber-boxer-briefs-3-pack__assorted.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909234/evergreen/demo/bamboo-fiber-boxer-briefs-3-pack__assorted.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "breathable-mesh-running-singlet",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215331/evergreen/demo/breathable-mesh-running-singlet__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909214/evergreen/demo/breathable-mesh-running-singlet__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "breathable-mesh-running-singlet",
       "colorSlug": "coral-red",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215333/evergreen/demo/breathable-mesh-running-singlet__coral-red.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909218/evergreen/demo/breathable-mesh-running-singlet__coral-red.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "brushed-fleece-lounge-pants",
+      "colorSlug": "charcoal",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909218/evergreen/demo/brushed-fleece-lounge-pants__charcoal.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "brushed-fleece-lounge-pants",
+      "colorSlug": "fawn",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909219/evergreen/demo/brushed-fleece-lounge-pants__fawn.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "bucket-hat",
+      "colorSlug": "khaki",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909220/evergreen/demo/bucket-hat__khaki.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "bucket-hat",
+      "colorSlug": "navy",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909221/evergreen/demo/bucket-hat__navy.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "canvas-carpenter-pants",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909221/evergreen/demo/canvas-carpenter-pants__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "canvas-carpenter-pants",
+      "colorSlug": "tan",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909222/evergreen/demo/canvas-carpenter-pants__tan.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "canvas-everyday-tote",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909222/evergreen/demo/canvas-everyday-tote__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "canvas-everyday-tote",
+      "colorSlug": "natural",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909223/evergreen/demo/canvas-everyday-tote__natural.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "chambray-work-shirt",
+      "colorSlug": "indigo",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909223/evergreen/demo/chambray-work-shirt__indigo.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "chambray-work-shirt",
+      "colorSlug": "light-wash",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909224/evergreen/demo/chambray-work-shirt__light-wash.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "classic-crewneck-cotton-tee",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215333/evergreen/demo/classic-crewneck-cotton-tee__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909225/evergreen/demo/classic-crewneck-cotton-tee__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "classic-crewneck-cotton-tee",
       "colorSlug": "white",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215333/evergreen/demo/classic-crewneck-cotton-tee__white.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909226/evergreen/demo/classic-crewneck-cotton-tee__white.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "classic-pique-cotton-polo",
       "colorSlug": "navy-blue",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215334/evergreen/demo/classic-pique-cotton-polo__navy-blue.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909229/evergreen/demo/classic-pique-cotton-polo__navy-blue.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "classic-pique-cotton-polo",
       "colorSlug": "white",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215334/evergreen/demo/classic-pique-cotton-polo__white.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909229/evergreen/demo/classic-pique-cotton-polo__white.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "cloud-knit-lounge-set",
+      "colorSlug": "heather-grey",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909230/evergreen/demo/cloud-knit-lounge-set__heather-grey.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "cloud-knit-lounge-set",
+      "colorSlug": "oatmeal",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909231/evergreen/demo/cloud-knit-lounge-set__oatmeal.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "comfort-drawstring-jogger-pants",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215336/evergreen/demo/comfort-drawstring-jogger-pants__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909232/evergreen/demo/comfort-drawstring-jogger-pants__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "comfort-drawstring-jogger-pants",
       "colorSlug": "grey",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215336/evergreen/demo/comfort-drawstring-jogger-pants__grey.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909234/evergreen/demo/comfort-drawstring-jogger-pants__grey.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "compression-long-sleeve-top",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909234/evergreen/demo/compression-long-sleeve-top__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "compression-long-sleeve-top",
+      "colorSlug": "slate",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909235/evergreen/demo/compression-long-sleeve-top__slate.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "corduroy-overshirt-jacket",
+      "colorSlug": "brown",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909236/evergreen/demo/corduroy-overshirt-jacket__brown.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "corduroy-overshirt-jacket",
+      "colorSlug": "forest",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909236/evergreen/demo/corduroy-overshirt-jacket__forest.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "cotton-gauze-pajama-set",
+      "colorSlug": "dusty-blue",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909237/evergreen/demo/cotton-gauze-pajama-set__dusty-blue.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "cotton-gauze-pajama-set",
+      "colorSlug": "ivory",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909237/evergreen/demo/cotton-gauze-pajama-set__ivory.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "cuban-collar-linen-blend-shirt",
+      "colorSlug": "dusty-olive",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909237/evergreen/demo/cuban-collar-linen-blend-shirt__dusty-olive.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "cuban-collar-linen-blend-shirt",
+      "colorSlug": "ecru",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909238/evergreen/demo/cuban-collar-linen-blend-shirt__ecru.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "cushioned-cotton-crew-socks-3-pack",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215337/evergreen/demo/cushioned-cotton-crew-socks-3-pack__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909273/evergreen/demo/cushioned-cotton-crew-socks-3-pack__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "cushioned-cotton-crew-socks-3-pack",
       "colorSlug": "white",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215338/evergreen/demo/cushioned-cotton-crew-socks-3-pack__white.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909239/evergreen/demo/cushioned-cotton-crew-socks-3-pack__white.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "essential-slub-cotton-tee",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909239/evergreen/demo/essential-slub-cotton-tee__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "essential-slub-cotton-tee",
+      "colorSlug": "stone",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909241/evergreen/demo/essential-slub-cotton-tee__stone.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "essential-slub-cotton-tee",
+      "colorSlug": "white",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909242/evergreen/demo/essential-slub-cotton-tee__white.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "everyday-merino-beanie",
+      "colorSlug": "charcoal",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909242/evergreen/demo/everyday-merino-beanie__charcoal.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "everyday-merino-beanie",
+      "colorSlug": "oat",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909243/evergreen/demo/everyday-merino-beanie__oat.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "everyday-stretch-chino-pants",
       "colorSlug": "khaki",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215338/evergreen/demo/everyday-stretch-chino-pants__khaki.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909243/evergreen/demo/everyday-stretch-chino-pants__khaki.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "everyday-stretch-chino-pants",
       "colorSlug": "navy",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215339/evergreen/demo/everyday-stretch-chino-pants__navy.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909244/evergreen/demo/everyday-stretch-chino-pants__navy.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "flow-wide-leg-yoga-pants",
+      "colorSlug": "charcoal",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909245/evergreen/demo/flow-wide-leg-yoga-pants__charcoal.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "flow-wide-leg-yoga-pants",
+      "colorSlug": "sage",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909245/evergreen/demo/flow-wide-leg-yoga-pants__sage.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "french-terry-full-zip-hoodie",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215342/evergreen/demo/french-terry-full-zip-hoodie__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909247/evergreen/demo/french-terry-full-zip-hoodie__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "french-terry-full-zip-hoodie",
       "colorSlug": "heather-grey",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215340/evergreen/demo/french-terry-full-zip-hoodie__heather-grey.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909247/evergreen/demo/french-terry-full-zip-hoodie__heather-grey.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "garment-dyed-pocket-tee",
+      "colorSlug": "faded-black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909247/evergreen/demo/garment-dyed-pocket-tee__faded-black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "garment-dyed-pocket-tee",
+      "colorSlug": "rust",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909249/evergreen/demo/garment-dyed-pocket-tee__rust.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "heavy-canvas-daily-tote-bag",
       "colorSlug": "natural-ecru",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215340/evergreen/demo/heavy-canvas-daily-tote-bag__natural-ecru.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909249/evergreen/demo/heavy-canvas-daily-tote-bag__natural-ecru.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "heavy-canvas-daily-tote-bag",
       "colorSlug": "washed-black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215341/evergreen/demo/heavy-canvas-daily-tote-bag__washed-black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909254/evergreen/demo/heavy-canvas-daily-tote-bag__washed-black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "heavyweight-boxy-pocket-tee",
       "colorSlug": "oatmeal",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215341/evergreen/demo/heavyweight-boxy-pocket-tee__oatmeal.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909289/evergreen/demo/heavyweight-boxy-pocket-tee__oatmeal.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "heavyweight-boxy-pocket-tee",
       "colorSlug": "sage-green",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215341/evergreen/demo/heavyweight-boxy-pocket-tee__sage-green.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909252/evergreen/demo/heavyweight-boxy-pocket-tee__sage-green.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "heavyweight-pullover-sweatshirt",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215342/evergreen/demo/heavyweight-pullover-sweatshirt__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909255/evergreen/demo/heavyweight-pullover-sweatshirt__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "heavyweight-pullover-sweatshirt",
       "colorSlug": "forest-green",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215343/evergreen/demo/heavyweight-pullover-sweatshirt__forest-green.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909260/evergreen/demo/heavyweight-pullover-sweatshirt__forest-green.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "heritage-ringer-tee",
+      "colorSlug": "cream-forest",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909257/evergreen/demo/heritage-ringer-tee__cream-forest.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "heritage-ringer-tee",
+      "colorSlug": "cream-navy",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909258/evergreen/demo/heritage-ringer-tee__cream-navy.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "lightweight-rain-jacket",
+      "colorSlug": "navy",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909259/evergreen/demo/lightweight-rain-jacket__navy.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "lightweight-rain-jacket",
+      "colorSlug": "olive",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909260/evergreen/demo/lightweight-rain-jacket__olive.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "lightweight-ripstop-running-cap",
       "colorSlug": "reflective-black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215343/evergreen/demo/lightweight-ripstop-running-cap__reflective-black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909262/evergreen/demo/lightweight-ripstop-running-cap__reflective-black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "lightweight-ripstop-running-cap",
       "colorSlug": "reflective-silver",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215345/evergreen/demo/lightweight-ripstop-running-cap__reflective-silver.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909269/evergreen/demo/lightweight-ripstop-running-cap__reflective-silver.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "linen-short-sleeve-resort-shirt",
       "colorSlug": "beige",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215344/evergreen/demo/linen-short-sleeve-resort-shirt__beige.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909264/evergreen/demo/linen-short-sleeve-resort-shirt__beige.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "linen-short-sleeve-resort-shirt",
       "colorSlug": "terracotta",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215345/evergreen/demo/linen-short-sleeve-resort-shirt__terracotta.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909265/evergreen/demo/linen-short-sleeve-resort-shirt__terracotta.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "merino-blend-knit-polo",
+      "colorSlug": "camel",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909267/evergreen/demo/merino-blend-knit-polo__camel.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "merino-blend-knit-polo",
+      "colorSlug": "charcoal",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909268/evergreen/demo/merino-blend-knit-polo__charcoal.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "merino-lounge-socks-2-pack",
+      "colorSlug": "grey-marl",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909269/evergreen/demo/merino-lounge-socks-2-pack__grey-marl.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "merino-lounge-socks-2-pack",
+      "colorSlug": "oat",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909270/evergreen/demo/merino-lounge-socks-2-pack__oat.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "minimalist-technical-bomber-jacket",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215345/evergreen/demo/minimalist-technical-bomber-jacket__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909274/evergreen/demo/minimalist-technical-bomber-jacket__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "minimalist-technical-bomber-jacket",
       "colorSlug": "dark-grey",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215346/evergreen/demo/minimalist-technical-bomber-jacket__dark-grey.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909271/evergreen/demo/minimalist-technical-bomber-jacket__dark-grey.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "modal-sleep-shorts",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909274/evergreen/demo/modal-sleep-shorts__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "modal-sleep-shorts",
+      "colorSlug": "rose-taupe",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909277/evergreen/demo/modal-sleep-shorts__rose-taupe.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "monsoon-shell-jacket",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909275/evergreen/demo/monsoon-shell-jacket__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "monsoon-shell-jacket",
+      "colorSlug": "signal-orange",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909276/evergreen/demo/monsoon-shell-jacket__signal-orange.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "organic-cotton-ankle-socks-5-pack",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909276/evergreen/demo/organic-cotton-ankle-socks-5-pack__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "organic-cotton-ankle-socks-5-pack",
+      "colorSlug": "white",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909277/evergreen/demo/organic-cotton-ankle-socks-5-pack__white.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "pace-5-inch-running-shorts",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909278/evergreen/demo/pace-5-inch-running-shorts__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "pace-5-inch-running-shorts",
+      "colorSlug": "cobalt",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909280/evergreen/demo/pace-5-inch-running-shorts__cobalt.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "packable-anorak",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909279/evergreen/demo/packable-anorak__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "packable-anorak",
+      "colorSlug": "stone",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909279/evergreen/demo/packable-anorak__stone.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "packable-trail-windbreaker",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215347/evergreen/demo/packable-trail-windbreaker__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909281/evergreen/demo/packable-trail-windbreaker__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "packable-trail-windbreaker",
       "colorSlug": "cyan-blue",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215347/evergreen/demo/packable-trail-windbreaker__cyan-blue.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909280/evergreen/demo/packable-trail-windbreaker__cyan-blue.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "pleated-wide-leg-trousers",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909281/evergreen/demo/pleated-wide-leg-trousers__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "pleated-wide-leg-trousers",
+      "colorSlug": "stone",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909282/evergreen/demo/pleated-wide-leg-trousers__stone.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "poplin-easy-care-shirt",
+      "colorSlug": "sky-blue",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909285/evergreen/demo/poplin-easy-care-shirt__sky-blue.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "poplin-easy-care-shirt",
+      "colorSlug": "white",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909283/evergreen/demo/poplin-easy-care-shirt__white.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "pull-on-linen-blend-trousers",
+      "colorSlug": "navy",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909283/evergreen/demo/pull-on-linen-blend-trousers__navy.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "pull-on-linen-blend-trousers",
+      "colorSlug": "sand",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909284/evergreen/demo/pull-on-linen-blend-trousers__sand.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "quick-dry-hiking-pants",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909284/evergreen/demo/quick-dry-hiking-pants__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "quick-dry-hiking-pants",
+      "colorSlug": "olive",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909285/evergreen/demo/quick-dry-hiking-pants__olive.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "quick-dry-travel-shirt",
+      "colorSlug": "navy",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909285/evergreen/demo/quick-dry-travel-shirt__navy.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "quick-dry-travel-shirt",
+      "colorSlug": "stone",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909287/evergreen/demo/quick-dry-travel-shirt__stone.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "relaxed-henley-long-sleeve",
+      "colorSlug": "navy",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909286/evergreen/demo/relaxed-henley-long-sleeve__navy.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "relaxed-henley-long-sleeve",
+      "colorSlug": "oatmeal",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909286/evergreen/demo/relaxed-henley-long-sleeve__oatmeal.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "relaxed-oxford-button-down-shirt",
       "colorSlug": "light-blue",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215347/evergreen/demo/relaxed-oxford-button-down-shirt__light-blue.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909288/evergreen/demo/relaxed-oxford-button-down-shirt__light-blue.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "relaxed-oxford-button-down-shirt",
       "colorSlug": "white",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215348/evergreen/demo/relaxed-oxford-button-down-shirt__white.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909288/evergreen/demo/relaxed-oxford-button-down-shirt__white.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "rib-knit-sleep-tee",
+      "colorSlug": "blush",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909289/evergreen/demo/rib-knit-sleep-tee__blush.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "rib-knit-sleep-tee",
+      "colorSlug": "white",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909289/evergreen/demo/rib-knit-sleep-tee__white.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "rib-knit-tank-top",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909290/evergreen/demo/rib-knit-tank-top__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "rib-knit-tank-top",
+      "colorSlug": "white",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909290/evergreen/demo/rib-knit-tank-top__white.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "ripstop-crossbody-sling-bag",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909290/evergreen/demo/ripstop-crossbody-sling-bag__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "ripstop-crossbody-sling-bag",
+      "colorSlug": "olive",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909293/evergreen/demo/ripstop-crossbody-sling-bag__olive.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "ripstop-utility-cargo-shorts",
       "colorSlug": "olive",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215348/evergreen/demo/ripstop-utility-cargo-shorts__olive.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909293/evergreen/demo/ripstop-utility-cargo-shorts__olive.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "ripstop-utility-cargo-shorts",
       "colorSlug": "sand",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215349/evergreen/demo/ripstop-utility-cargo-shorts__sand.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909336/evergreen/demo/ripstop-utility-cargo-shorts__sand.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "sculpt-seamless-sports-bra",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909292/evergreen/demo/sculpt-seamless-sports-bra__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "sculpt-seamless-sports-bra",
+      "colorSlug": "mauve",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909293/evergreen/demo/sculpt-seamless-sports-bra__mauve.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "sculpt-seamless-sports-bra",
+      "colorSlug": "sand",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909295/evergreen/demo/sculpt-seamless-sports-bra__sand.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "seamless-modal-trunks-2-pack",
       "colorSlug": "black-grey",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215350/evergreen/demo/seamless-modal-trunks-2-pack__black-grey.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909294/evergreen/demo/seamless-modal-trunks-2-pack__black-grey.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "seamless-performance-training-tee",
       "colorSlug": "charcoal",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215350/evergreen/demo/seamless-performance-training-tee__charcoal.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909296/evergreen/demo/seamless-performance-training-tee__charcoal.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "seamless-performance-training-tee",
       "colorSlug": "navy",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215351/evergreen/demo/seamless-performance-training-tee__navy.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909296/evergreen/demo/seamless-performance-training-tee__navy.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "straight-leg-indigo-jeans",
+      "colorSlug": "indigo",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909297/evergreen/demo/straight-leg-indigo-jeans__indigo.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "straight-leg-indigo-jeans",
+      "colorSlug": "washed-black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909298/evergreen/demo/straight-leg-indigo-jeans__washed-black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "stretch-tapered-work-pants",
+      "colorSlug": "charcoal",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909298/evergreen/demo/stretch-tapered-work-pants__charcoal.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "stretch-tapered-work-pants",
+      "colorSlug": "khaki",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909301/evergreen/demo/stretch-tapered-work-pants__khaki.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "structured-workwear-overshirt",
       "colorSlug": "khaki",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215351/evergreen/demo/structured-workwear-overshirt__khaki.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909302/evergreen/demo/structured-workwear-overshirt__khaki.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "structured-workwear-overshirt",
       "colorSlug": "washed-black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215351/evergreen/demo/structured-workwear-overshirt__washed-black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909300/evergreen/demo/structured-workwear-overshirt__washed-black.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "studio-high-rise-leggings",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909301/evergreen/demo/studio-high-rise-leggings__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "studio-high-rise-leggings",
+      "colorSlug": "deep-plum",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909303/evergreen/demo/studio-high-rise-leggings__deep-plum.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "studio-high-rise-leggings",
+      "colorSlug": "sage",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909302/evergreen/demo/studio-high-rise-leggings__sage.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "supima-modal-oversized-tee",
       "colorSlug": "cloud-grey",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215352/evergreen/demo/supima-modal-oversized-tee__cloud-grey.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909303/evergreen/demo/supima-modal-oversized-tee__cloud-grey.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "supima-modal-oversized-tee",
       "colorSlug": "ivory",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215353/evergreen/demo/supima-modal-oversized-tee__ivory.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909309/evergreen/demo/supima-modal-oversized-tee__ivory.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "tailored-pleated-easy-trousers",
       "colorSlug": "charcoal",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215353/evergreen/demo/tailored-pleated-easy-trousers__charcoal.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909347/evergreen/demo/tailored-pleated-easy-trousers__charcoal.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "tech-knit-zipper-polo",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215354/evergreen/demo/tech-knit-zipper-polo__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909305/evergreen/demo/tech-knit-zipper-polo__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "tech-knit-zipper-polo",
       "colorSlug": "olive-green",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215354/evergreen/demo/tech-knit-zipper-polo__olive-green.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909308/evergreen/demo/tech-knit-zipper-polo__olive-green.png",
       "width": 1024,
       "height": 1536
     },
     {
+      "productSlug": "tempo-cooling-tank",
+      "colorSlug": "citrus",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909309/evergreen/demo/tempo-cooling-tank__citrus.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "tempo-cooling-tank",
+      "colorSlug": "white",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909310/evergreen/demo/tempo-cooling-tank__white.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "terry-cloth-slides",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909311/evergreen/demo/terry-cloth-slides__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "terry-cloth-slides",
+      "colorSlug": "cream",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909311/evergreen/demo/terry-cloth-slides__cream.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "trail-hybrid-shorts",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909312/evergreen/demo/trail-hybrid-shorts__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "trail-hybrid-shorts",
+      "colorSlug": "olive",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909313/evergreen/demo/trail-hybrid-shorts__olive.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "velocity-track-jacket",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909313/evergreen/demo/velocity-track-jacket__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "velocity-track-jacket",
+      "colorSlug": "navy",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909314/evergreen/demo/velocity-track-jacket__navy.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "waffle-cotton-robe",
+      "colorSlug": "navy",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909314/evergreen/demo/waffle-cotton-robe__navy.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "waffle-cotton-robe",
+      "colorSlug": "stone",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909315/evergreen/demo/waffle-cotton-robe__stone.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
       "productSlug": "waffle-knit-long-sleeve-tee",
       "colorSlug": "black",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215355/evergreen/demo/waffle-knit-long-sleeve-tee__black.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909315/evergreen/demo/waffle-knit-long-sleeve-tee__black.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "waffle-knit-long-sleeve-tee",
       "colorSlug": "sand",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215355/evergreen/demo/waffle-knit-long-sleeve-tee__sand.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909330/evergreen/demo/waffle-knit-long-sleeve-tee__sand.png",
       "width": 1024,
       "height": 1536
     },
     {
       "productSlug": "water-resistant-commuter-parka",
       "colorSlug": "olive",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215356/evergreen/demo/water-resistant-commuter-parka__olive.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909317/evergreen/demo/water-resistant-commuter-parka__olive.png",
       "width": 1024,
       "height": 1536
+    },
+    {
+      "productSlug": "waxed-cotton-work-jacket",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909319/evergreen/demo/waxed-cotton-work-jacket__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "waxed-cotton-work-jacket",
+      "colorSlug": "tan",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909320/evergreen/demo/waxed-cotton-work-jacket__tan.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "wool-blend-coach-jacket",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909321/evergreen/demo/wool-blend-coach-jacket__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "wool-blend-coach-jacket",
+      "colorSlug": "charcoal",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909322/evergreen/demo/wool-blend-coach-jacket__charcoal.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "woven-cotton-belt",
+      "colorSlug": "black",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909323/evergreen/demo/woven-cotton-belt__black.jpg",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "productSlug": "woven-cotton-belt",
+      "colorSlug": "khaki",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909324/evergreen/demo/woven-cotton-belt__khaki.jpg",
+      "width": 1024,
+      "height": 1280
     }
   ],
   "banners": [
     {
+      "name": "banner-collection-active-everyday",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909325/evergreen/demo/banner-collection-active-everyday.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "banner-collection-new-arrivals",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909326/evergreen/demo/banner-collection-new-arrivals.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "banner-collection-office-essentials",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909327/evergreen/demo/banner-collection-office-essentials.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "banner-collection-rainy-season",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909328/evergreen/demo/banner-collection-rainy-season.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "banner-collection-tet-gift-edit",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909329/evergreen/demo/banner-collection-tet-gift-edit.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "banner-collection-weekend-casual",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909330/evergreen/demo/banner-collection-weekend-casual.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
       "name": "banner-hero",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215356/evergreen/demo/banner-hero.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909331/evergreen/demo/banner-hero.png",
       "width": 1536,
       "height": 1024
     },
     {
       "name": "banner-hero-wide",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215356/evergreen/demo/banner-hero-wide.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909336/evergreen/demo/banner-hero-wide.png",
       "width": 1672,
       "height": 941
     },
     {
+      "name": "brand-ardent-motion",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909333/evergreen/demo/brand-ardent-motion.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "brand-cinder-oak",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909334/evergreen/demo/brand-cinder-oak.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "brand-hushwell",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909335/evergreen/demo/brand-hushwell.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
       "name": "brand-monolith-studio",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215357/evergreen/demo/brand-monolith-studio.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909336/evergreen/demo/brand-monolith-studio.png",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "brand-tidewell",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909338/evergreen/demo/brand-tidewell.jpg",
       "width": 1536,
       "height": 1024
     },
     {
       "name": "brand-veloce-active",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215358/evergreen/demo/brand-veloce-active.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909399/evergreen/demo/brand-veloce-active.png",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "category-activewear",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909338/evergreen/demo/category-activewear.jpg",
       "width": 1536,
       "height": 1024
     },
     {
       "name": "category-basics-accessories",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215358/evergreen/demo/category-basics-accessories.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909339/evergreen/demo/category-basics-accessories.png",
       "width": 1536,
       "height": 1024
     },
     {
       "name": "category-hoodies-outerwear",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215358/evergreen/demo/category-hoodies-outerwear.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909354/evergreen/demo/category-hoodies-outerwear.png",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "category-loungewear-sleepwear",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909340/evergreen/demo/category-loungewear-sleepwear.jpg",
       "width": 1536,
       "height": 1024
     },
     {
       "name": "category-pants-shorts",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215359/evergreen/demo/category-pants-shorts.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909342/evergreen/demo/category-pants-shorts.png",
       "width": 1536,
       "height": 1024
     },
     {
       "name": "category-shirts-polos",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215359/evergreen/demo/category-shirts-polos.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909344/evergreen/demo/category-shirts-polos.png",
       "width": 1536,
       "height": 1024
     },
     {
       "name": "category-t-shirts-tops",
-      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1793215360/evergreen/demo/category-t-shirts-tops.png",
+      "url": "https://res.cloudinary.com/s0iqplop/image/upload/v1794909346/evergreen/demo/category-t-shirts-tops.png",
       "width": 1536,
       "height": 1024
     }
