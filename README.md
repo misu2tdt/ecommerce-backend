@@ -26,6 +26,13 @@ The demo store never takes real money. When `PAYMENT_PROVIDER=demo` a visitor
 finishes an order on a clearly labelled practice payment page; see
 [docs/payments.md](./docs/payments.md).
 
+That page also has a **payment simulator** ("Try a tricky case"). Through
+`POST /payments/{id}/demo/simulate` a visitor can replay a success twice, a success
+after the order expired, a delayed success or a tampered signature. The backend
+builds and signs every event itself, sends it through the same pipeline a real
+callback uses, and answers with an explanation and the steps it took, so the
+safety rules below can be watched working.
+
 ## Architecture
 
 ```mermaid
@@ -220,8 +227,8 @@ numbers, their reasons and the limits of the design are in
 
 | Suite | Command | Count (latest run) | What it covers |
 | --- | --- | --- | --- |
-| Unit | `npm test` | 890 tests, 79 suites | Pure logic, guards, DTO validation, services with mocks |
-| Integration | `npm run test:integration` | 448 tests, 36 suites | Real PostgreSQL: checkout and stock, payments and reconciliation, expiry, migrations, seeds, seeded order history, rate limiting, pagination, product search and its index, admin analytics |
+| Unit | `npm test` | 1075 tests, 91 suites | Pure logic, guards, DTO validation, services with mocks |
+| Integration | `npm run test:integration` | 570 tests, 42 suites | Real PostgreSQL: checkout and stock, payments and reconciliation, expiry, migrations, seeds, seeded order history, rate limiting, pagination, product search and its index, admin analytics |
 | Database safety | `npm run test:database-safety` | 7 tests | The guards that keep tests off any other database |
 | End to end | `npm run test:e2e` | 1 test | The application boots and answers |
 
@@ -231,8 +238,8 @@ tests. [CI](./.github/workflows/ci.yml) runs the audit, lint, type check, build
 and all of the above on every push and pull request, against a PostgreSQL 16
 service.
 
-The storefront repository has its own tests (its last run: 64 unit tests and 78
-browser tests, including the whole checkout and payment path against this API).
+The storefront repository has its own tests (its last run: 393 unit tests and 255
+browser smoke tests, including the whole checkout and payment path against this API).
 
 For the logic where a mistake would cost money or stock (locking, idempotency,
 paging, rate-limit keys, stock refills), new tests were also checked by
