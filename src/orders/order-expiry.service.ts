@@ -73,6 +73,37 @@ export class OrderExpiryService {
     return result;
   }
 
+  /**
+   * Expires ONE order now, whatever its age, through the same steps as the
+   * sweep: lock its payments then the order, refuse if a payment succeeded, and
+   * cancel it with cancelLockedOrder (payments cancelled, stock back on sale).
+   * For the payment simulator of the demo store only: the caller has already
+   * checked that this order may be expired. The sweep (expireOverdueOrders) is
+   * untouched and still only looks at orders past their payment window.
+   */
+  expireOrderNow(orderId: number): Promise<'expired' | 'skipped'> {
+    return this.dataSource.transaction(async (manager) => {
+      const payments = await manager.getRepository(Payment).find({
+        where: { orderId },
+        order: { id: 'ASC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const order = await manager
+        .getRepository(Order)
+        .createQueryBuilder('o')
+        .setLock('pessimistic_write')
+        .where('o.id = :orderId', { orderId })
+        .andWhere('o.status = :status', { status: OrderStatus.PENDING })
+        .getOne();
+      if (!order) return 'skipped';
+      if (payments.some(({ status }) => status === PaymentStatus.SUCCEEDED))
+        return 'skipped';
+
+      await cancelLockedOrder(manager, order, payments);
+      return 'expired';
+    });
+  }
+
   private expireOne(
     orderId: number,
     cutoff: Date,

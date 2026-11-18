@@ -71,6 +71,39 @@ for an admin, not lost.
 short, with a time limit; and skip the ids that failed in this sweep so one bad
 order can not starve the others.
 
+## The payment simulator of the demo
+
+The simulator (`POST /payments/:id/demo/simulate`, `PAYMENT_PROVIDER=demo` only,
+see [payments.md](./payments.md)) is for the portfolio demo. It has these limits:
+
+**The demo account is shared.** The credentials of the demo customer are public,
+so "the caller's own payment" is not a separation between visitors: anyone signed
+in as the demo customer can run a scenario on the open payment of any other
+visitor using the same account, and `success_after_expiry` cancels that order.
+It is accepted because the demo has no real money and no real customers. What
+limits the damage: the scenario only works on a payment started in the last 15
+minutes, on an order that is still pending, 20 times a minute per user.
+Registering an account of one's own makes every scenario private.
+
+**Expiry is forced, not waited for.** A real order expires 30 minutes after it
+is placed and the sweep runs every 5 minutes, so a visitor cannot wait for it.
+`success_after_expiry` makes one order expire immediately through the same code
+(`cancelLockedOrder`), then sends a late success. It shows the same result a
+real late callback would have; it does not show the timing. The answer says so.
+
+**A delayed callback is lost on restart.** The 10-second wait is a timer in the
+memory of the API, with no table behind it. If the API restarts (a deployment,
+or a free Render instance going to sleep) before it fires, the event is never
+delivered and the payment stays `processing`. The buttons of the demo payment
+page (`/demo/complete`) finish it. A table with scheduled events and the order
+expiry scheduler to deliver them would fix it; it was left out on purpose.
+
+**The reconciliation queue can fill.** `success_after_expiry` stores an event for
+an admin. It is refused while 12 or more unresolved events wait, so the queue
+cannot grow without bound, but the count is read before the order is expired and
+not under a lock: several requests at the very same moment can pass a little
+beyond 12. An admin must resolve the demo events for the scenario to work again.
+
 ## Accounts and the email index
 
 Emails are compared ignoring case and spaces when registering and signing in, and

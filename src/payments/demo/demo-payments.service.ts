@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import type { PaymentProviderMode } from '../../config/environment';
 import { Order } from '../../orders/entities/order.entity';
@@ -10,6 +15,7 @@ import { Payment } from '../entities/payment.entity';
 import { ProviderPaymentEvent } from '../payment-event';
 import { PAYMENT_PROVIDER_MODE } from '../payments.constants';
 import { PaymentsService } from '../payments.service';
+import { DemoEventDeliveryService } from './demo-event-delivery.service';
 import { DemoOutcome } from './dto/complete-demo-payment.dto';
 import { DEMO_PAYMENT_PROVIDER } from './demo-payment.provider';
 
@@ -56,6 +62,10 @@ export class DemoPaymentsService {
     private readonly paymentsService: PaymentsService,
     @Inject(PAYMENT_PROVIDER_MODE)
     private readonly mode: PaymentProviderMode,
+    // Always provided by the module. Optional only so that code which builds
+    // this service by hand for a check that never reaches the pipeline can
+    // leave it out.
+    @Optional() private readonly delivery?: DemoEventDeliveryService,
   ) {}
 
   async complete(userId: number, paymentId: number, outcome: DemoOutcome) {
@@ -77,9 +87,13 @@ export class DemoPaymentsService {
     )
       throw new NotFoundException('Payment not found');
 
-    // Same function a MoMo IPN calls: event idempotency, lock order, order
+    if (!this.delivery)
+      throw new Error('Demo event delivery is not configured');
+    // The event is signed and sent through the demo ingress, which verifies it
+    // and then calls the same function a MoMo IPN calls
+    // (PaymentsService.processEvent): event idempotency, lock order, order
     // confirmation and the late-event reconciliation all live there.
-    const processed = await this.paymentsService.processEvent(
+    const processed = await this.delivery.deliver(
       buildDemoProviderEvent(
         { id: payment.id, providerPaymentId: payment.providerPaymentId },
         outcome,

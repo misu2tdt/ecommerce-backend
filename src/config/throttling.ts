@@ -45,6 +45,11 @@ export const LOGIN_IP_THROTTLE = { ttl: MINUTE, limit: 300 };
 // bucket, or registering accounts would multiply the allowance).
 export const REGISTER_THROTTLE = { ttl: MINUTE, limit: 20 };
 
+// POST /payments/:id/demo/simulate (demo payments only), per signed-in user. A
+// scenario writes to the database and can cancel an order, so it gets a tighter
+// allowance than the 300 a minute of ordinary routes.
+export const DEMO_SIMULATE_THROTTLE = { ttl: MINUTE, limit: 20 };
+
 // The extra, email-keyed throttler that only POST /auth/login opts into.
 export const LOGIN_EMAIL_THROTTLER = 'login-email';
 const THROTTLE_BY_EMAIL = 'throttle-by-email';

@@ -65,6 +65,7 @@ All windows are 60 seconds.
 | `POST /auth/login` | email | 20 | The brake on password guessing, whatever IPs the guesses come from. Every attempt counts, successful or not. 20 leaves room for several visitors using the shared demo account in one minute. |
 | `POST /auth/login` | IP | 300 | A ceiling against one source trying many emails, high enough that a shared proxy does not reach it by accident. A token in the request does not move it to another bucket. |
 | `POST /users/register` | IP | 20 | Account creation is the expensive, abusable action. Per IP only: if a signed-in user had their own bucket, registering accounts would multiply the allowance. |
+| `POST /payments/:id/demo/simulate` (demo mode only) | user | 20 | A scenario writes to the database and one of them cancels an order, so it is tighter than the 300 of ordinary routes. The simulator has no public webhook: its events go through the API itself, so no unauthenticated route needs a limit. |
 | `GET /health`, MoMo IPN webhook | none | exempt | Platform probes and payment callbacks must never be refused. |
 
 A refused request gets `429 Too Many Requests` with `Retry-After` and

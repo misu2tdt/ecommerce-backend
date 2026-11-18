@@ -205,6 +205,28 @@ payment can only be finished while `PAYMENT_PROVIDER=demo`; the endpoint
 answers 404 otherwise. How it behaves, and the request and response shapes, are
 in [payments.md](./payments.md).
 
+With `PAYMENT_PROVIDER=demo` the API also has a **payment simulator**
+(`POST /payments/:id/demo/simulate`) where a visitor can play success, a
+decline, a cancel, a success delivered twice, a success that arrives after the
+order expired, a delayed callback and a callback with a bad signature. Every
+event is signed by the API and verified before it is processed, the same way a
+real callback is; nothing in the schema changed and **no new environment
+variable** is needed (the signing key is derived from `JWT_SECRET`). What to
+know when running it on the free tier:
+
+- The delayed callback waits in the API's memory for 10 seconds. If Render
+  restarts or sleeps the instance in that time the event is lost and the payment
+  stays `processing`; the buttons of the demo payment page finish it.
+- "Success after expiry" forces the expiry of that one order (it does not wait
+  for the 30-minute window). It is only allowed for a payment started in the last
+  15 minutes, and while fewer than 12 events wait in the reconciliation queue:
+  an admin should resolve the demo events now and then
+  (`/admin/payments/reconciliation`).
+- The public demo account is shared, so a visitor can run a scenario on another
+  visitor's open order. See [known-limitations.md](./known-limitations.md).
+
+How each scenario answers is in [payments.md](./payments.md#payment-simulator-post-paymentspaymentiddemosimulate).
+
 Rerun the seed (`npm run seed:demo:production`, see section D) to give the
 seeded delivered order its succeeded demo payment; it adds nothing twice.
 

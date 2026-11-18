@@ -32,6 +32,6 @@ import { ORDER_PAYMENT_WINDOW_MINUTES } from './orders.constants';
         getOrderPaymentWindowMinutes((key) => configService.get(key)),
     },
   ],
-  exports: [OrdersService],
+  exports: [OrdersService, OrderExpiryService],
 })
 export class OrdersModule {}

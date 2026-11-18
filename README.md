@@ -305,7 +305,10 @@ with `/health` as its health check) and **Vercel** (the storefront).
   `PRODUCTION_DEMO_SEED_DATABASE`.
 - **Demo payments** are switched on with `PAYMENT_PROVIDER=demo` on Render (and a
   redeploy). Any other value than `momo` or `demo` stops the application at
-  start-up.
+  start-up. In demo mode a payment simulator plays seven payment scenarios
+  through the same signed-event pipeline a callback uses (see
+  [docs/payments.md](docs/payments.md)); its limits are in
+  [docs/known-limitations.md](docs/known-limitations.md).
 - Secrets live only in the hosting dashboards. `FRONTEND_ORIGIN` must be the
   exact storefront origin.
 

@@ -11,8 +11,8 @@ Result of the run: **PASS**
 
 | Item | Value |
 | --- | --- |
-| Date (UTC) | 2026-11-17T12:35:14.386Z |
-| Run time | 21.11 s |
+| Date (UTC) | 2026-11-17T18:10:23.139Z |
+| Run time | 22.97 s |
 | OS | Windows_NT 10.0.26200 (x64) |
 | CPU | 11th Gen Intel(R) Core(TM) i5-11400H @ 2.70GHz (12 logical CPUs) |
 | Memory | 16 GB |
@@ -24,11 +24,11 @@ Result of the run: **PASS**
 
 | # | Scenario | Result | Requests | Unexpected | 429 | Wall time |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Oversell | PASS | 200 | 0 | 0 | 964.2 ms |
-| 2 | Deadlock safety | PASS | 200 | 0 | 0 | 1.35 s |
-| 3 | Payment idempotency | PASS | 200 | 0 | 0 | 1.15 s |
-| 4 | Concurrent payment events | PASS | 100 | 0 | 0 | 473.4 ms |
-| 5 | Cancellation against payment completion | PASS | 225 | 0 | 0 | 1.18 s |
+| 1 | Oversell | PASS | 200 | 0 | 0 | 1.30 s |
+| 2 | Deadlock safety | PASS | 200 | 0 | 0 | 1.31 s |
+| 3 | Payment idempotency | PASS | 200 | 0 | 0 | 1.30 s |
+| 4 | Concurrent payment events | PASS | 100 | 0 | 0 | 598.1 ms |
+| 5 | Cancellation against payment completion | PASS | 225 | 0 | 0 | 1.26 s |
 
 ## 1. Oversell: PASS
 
@@ -36,7 +36,7 @@ Many customers check out the same scarce variant at the same moment through thei
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 200 carts check out together | 200 | 10 | 190 | 0 | 0 | 688.2 ms | 921.8 ms | 964.2 ms | 207.4/s |
+| 200 carts check out together | 200 | 10 | 190 | 0 | 0 | 927.7 ms | 1.25 s | 1.30 s | 153.4/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ Customers order the same two variants in opposite orders (A,B and B,A). The serv
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 200 orders of both variants, half A,B and half B,A | 200 | 10 | 190 | 0 | 0 | 914.6 ms | 1.28 s | 1.35 s | 148.5/s |
+| 200 orders of both variants, half A,B and half B,A | 200 | 10 | 190 | 0 | 0 | 865.3 ms | 1.25 s | 1.31 s | 152.4/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
@@ -81,8 +81,8 @@ Parallel create-payment requests with the same Idempotency-Key produce one payme
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 orders x 20 requests, same key | 100 | 100 | 0 | 0 | 0 | 605.6 ms | 626.1 ms | 640.6 ms | 156.1/s |
-| 5 orders x 20 requests, different keys | 100 | 5 | 95 | 0 | 0 | 326.4 ms | 477.6 ms | 509.4 ms | 196.3/s |
+| 5 orders x 20 requests, same key | 100 | 100 | 0 | 0 | 0 | 677.4 ms | 755.2 ms | 774.7 ms | 129.1/s |
+| 5 orders x 20 requests, different keys | 100 | 5 | 95 | 0 | 0 | 348.6 ms | 490.1 ms | 521.9 ms | 191.6/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
@@ -105,14 +105,14 @@ Several different events reach the same demo payment at the same moment (success
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 payments x 20 completions, success / failure / cancel mixed | 100 | 100 | 0 | 0 | 0 | 446.3 ms | 462.6 ms | 473.4 ms | 211.3/s |
+| 5 payments x 20 completions, success / failure / cancel mixed | 100 | 100 | 0 | 0 | 0 | 569.0 ms | 584.7 ms | 598.1 ms | 167.2/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |
-| Every order has one payment in one terminal state, and the order matches it | PASS | 5 of 5 payments (final states: cancelled 3, succeeded 2) |
+| Every order has one payment in one terminal state, and the order matches it | PASS | 5 of 5 payments (final states: cancelled 4, succeeded 1) |
 | Exactly one stored event per distinct event id sent (3 per payment) | PASS | 5 of 5 payments, 15 events stored |
 | The stored events agree with the final state (the first event to win the lock decides) | PASS | 5 of 5 payments |
-| Answers per event id: one "applied" and the rest "already_applied", or all "recorded_for_review" | PASS | 5 of 5 payments (already_applied 45, applied 8, recorded_for_review 47) |
+| Answers per event id: one "applied" and the rest "already_applied", or all "recorded_for_review" | PASS | 5 of 5 payments (already_applied 50, applied 9, recorded_for_review 41) |
 | Completing did not change stock | PASS | stock 995 before, 995 after |
 | No unexpected responses | PASS | 0 unexpected of 100 requests |
 | No 429 (a 429 is a setup problem, not a pass) | PASS | 0 throttled |
@@ -129,10 +129,10 @@ A payment is completed and its unpaid order cancelled in all three orders of arr
 
 | Burst | Requests | Successes | Expected refusals | Unexpected | 429 | p50 | p95 | Wall time | Throughput |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 paid orders: cancel sent after the payment completed | 5 | 0 | 5 | 0 | 0 | 14.4 ms | 15.0 ms | 15.5 ms | 323.1/s |
-| 5 orders x 3 cancels at once | 15 | 5 | 10 | 0 | 0 | 60.9 ms | 76.6 ms | 79.0 ms | 189.8/s |
-| 5 cancelled orders x 20 late completions | 100 | 100 | 0 | 0 | 0 | 518.4 ms | 531.0 ms | 544.3 ms | 183.7/s |
-| 5 orders: 1 cancel + 20 completions at once | 105 | 105 | 0 | 0 | 0 | 511.7 ms | 525.6 ms | 539.1 ms | 194.8/s |
+| 5 paid orders: cancel sent after the payment completed | 5 | 0 | 5 | 0 | 0 | 19.8 ms | 20.4 ms | 21.5 ms | 232.4/s |
+| 5 orders x 3 cancels at once | 15 | 5 | 10 | 0 | 0 | 61.8 ms | 79.5 ms | 81.8 ms | 183.4/s |
+| 5 cancelled orders x 20 late completions | 100 | 100 | 0 | 0 | 0 | 607.6 ms | 621.4 ms | 633.8 ms | 157.8/s |
+| 5 orders: 1 cancel + 20 completions at once | 105 | 105 | 0 | 0 | 0 | 494.4 ms | 508.7 ms | 523.2 ms | 200.7/s |
 
 | Check | Result | Detail |
 | --- | --- | --- |

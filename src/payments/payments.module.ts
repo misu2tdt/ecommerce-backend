@@ -10,6 +10,14 @@ import {
 import { Order } from '../orders/entities/order.entity';
 import { PaymentEvent } from './entities/payment-event.entity';
 import { Payment } from './entities/payment.entity';
+import { OrdersModule } from '../orders/orders.module';
+import {
+  DEMO_EVENT_SIGNING_KEY,
+  deriveDemoEventKey,
+} from './demo/demo-event.signature';
+import { DemoEventDeliveryService } from './demo/demo-event-delivery.service';
+import { DemoEventIngressService } from './demo/demo-event-ingress.service';
+import { DemoSimulatorService } from './demo/demo-simulator.service';
 import { DemoPaymentsController } from './demo/demo-payments.controller';
 import { DemoPaymentsEnabledGuard } from './demo/demo-payments-enabled.guard';
 import { DemoPaymentProvider } from './demo/demo-payment.provider';
@@ -39,6 +47,8 @@ import { PaymentReconciliationService } from './reconciliation/payment-reconcili
   imports: [
     TypeOrmModule.forFeature([Payment, PaymentEvent, Order]),
     AuthModule,
+    // For the demo simulator: it expires one order through OrderExpiryService.
+    OrdersModule,
   ],
   controllers: [
     PaymentsController,
@@ -68,6 +78,17 @@ import { PaymentReconciliationService } from './reconciliation/payment-reconcili
     },
     DemoPaymentsEnabledGuard,
     DemoPaymentsService,
+    DemoEventIngressService,
+    DemoEventDeliveryService,
+    DemoSimulatorService,
+    {
+      // The key that signs demo events, derived from JWT_SECRET with a fixed
+      // label. It is not exported and never leaves the API.
+      provide: DEMO_EVENT_SIGNING_KEY,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        deriveDemoEventKey(configService.get<string>('JWT_SECRET') ?? ''),
+    },
     {
       provide: PaymentProvider,
       inject: [
