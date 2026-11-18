@@ -12,8 +12,8 @@ work behind a shared proxy**, and **tests that run against a real database**.
 
 | What | Where |
 | --- | --- |
-| Storefront (Next.js on Vercel) | <https://ecommerce-frontend-kappa-sage.vercel.app> |
-| About this demo (what is real, what is simulated) | <https://ecommerce-frontend-kappa-sage.vercel.app/about-demo> |
+| Storefront (Next.js on Vercel) | <https://verve-shop.vercel.app> |
+| About this demo (what is real, what is simulated) | <https://verve-shop.vercel.app/about-demo> |
 | This API (NestJS on Render), health check | <https://ecommerce-backend-i5fc.onrender.com/health> |
 | Storefront repository | <https://github.com/misu2tdt/ecommerce-frontend> |
 | API repository | <https://github.com/misu2tdt/ecommerce-backend> |
