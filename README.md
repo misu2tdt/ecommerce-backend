@@ -238,7 +238,7 @@ tests. [CI](./.github/workflows/ci.yml) runs the audit, lint, type check, build
 and all of the above on every push and pull request, against a PostgreSQL 16
 service.
 
-The storefront repository has its own tests (its last run: 393 unit tests and 255
+The storefront repository has its own tests (its last run: 396 unit tests and 255
 browser smoke tests, including the whole checkout and payment path against this API).
 
 For the logic where a mistake would cost money or stock (locking, idempotency,
